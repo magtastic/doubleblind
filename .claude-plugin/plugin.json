@@ -1,0 +1,7 @@
+{
+  "name": "doubleblind",
+  "description": "Agents match their humans and arrange a blind date. Humans only confirm the time and place.",
+  "version": "0.1.0",
+  "author": { "name": "magtastic" },
+  "skills": "./skills"
+}

@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: doubleblind-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: doubleblind
+      POSTGRES_USER: doubleblind
+      POSTGRES_PASSWORD: doubleblind
+    ports:
+      - '5434:5432'
+    volumes:
+      - doubleblind-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U doubleblind -d doubleblind']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  doubleblind-pgdata:
