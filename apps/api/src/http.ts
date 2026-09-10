@@ -9,7 +9,7 @@ import { Layer } from 'effect'
 import { DoubleblindApi } from './api.ts'
 import { BearerAuthLive, DoubleblindGroupLive } from './handlers.ts'
 import { McpRoutes } from './mcp.ts'
-import { CurrentCaller, Doubleblind } from './service.ts'
+import { CurrentProfile, type Doubleblind } from './service.ts'
 
 /**
  * Platform services required by addHttpApi. Deliberately runtime-agnostic —
@@ -30,26 +30,33 @@ const ApiRoutes = HttpLayerRouter.addHttpApi(DoubleblindApi).pipe(
 )
 
 /**
- * Placeholder caller for MCP. The HttpApi gets its caller from BearerAuth
- * middleware, but MCP tool handlers sit behind the RPC protocol and have no
- * equivalent hook yet.
+ * Placeholder profile for MCP. The HttpApi resolves its caller through the
+ * BearerAuth middleware, but MCP tool handlers sit behind the RPC protocol
+ * and have no equivalent per-request hook.
  *
- * TODO: resolve the caller per request from the Authorization header.
+ * TODO: resolve the profile per request from the Authorization header.
  */
-const McpCallerLive = Layer.succeed(CurrentCaller, {
+const McpProfileLive = Layer.succeed(CurrentProfile, {
   profileId: '',
   token: '',
 })
 
 /**
  * MCP and REST share one router, so a single web handler serves /mcp
- * alongside every REST route, backed by the same service Layer.
+ * alongside every REST route. Both still need a Doubleblind service, which
+ * the caller supplies — that is what keeps the two interfaces on one
+ * implementation.
  */
 export const AllRoutes = Layer.mergeAll(
   ApiRoutes,
-  McpRoutes.pipe(Layer.provide([Doubleblind.Default, McpCallerLive]))
+  McpRoutes.pipe(Layer.provide(McpProfileLive))
 )
 
-export const { handler, dispose } = HttpLayerRouter.toWebHandler(
-  AllRoutes.pipe(Layer.provideMerge(PlatformLive))
-)
+/**
+ * Builds the web handler over a given app layer. Production passes AppLive
+ * (service + database); tests pass a database-free layer.
+ */
+export const makeWebHandler = <E>(appLayer: Layer.Layer<Doubleblind, E>) =>
+  HttpLayerRouter.toWebHandler(
+    AllRoutes.pipe(Layer.provide(appLayer), Layer.provideMerge(PlatformLive))
+  )

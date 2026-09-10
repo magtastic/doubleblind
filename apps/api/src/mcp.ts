@@ -13,7 +13,7 @@ import {
 } from '@doubleblind/shared'
 import { McpServer, Tool, Toolkit } from '@effect/ai'
 import { Effect, Layer, Schema } from 'effect'
-import { CurrentCaller, Doubleblind } from './service.ts'
+import { CurrentProfile, Doubleblind } from './service.ts'
 
 /**
  * MCP is the primary interface: an agent publishes its human, reads
@@ -92,22 +92,22 @@ export const DoubleblindToolkit = Toolkit.make(
 const DoubleblindToolkitLive = DoubleblindToolkit.toLayer(
   Effect.gen(function* () {
     const service = yield* Doubleblind
-    // Resolved once, because the caller is still a placeholder. The real
+    // Resolved once, because the profile is still a placeholder. The real
     // implementation must read the bearer token per request instead.
-    const caller = yield* CurrentCaller
+    const current = yield* CurrentProfile
 
     return {
       doubleblind_publish: (params) => service.publish(new Profile(params)),
       doubleblind_candidates: ({ limit }) =>
-        service.candidates(caller, limit ?? 10),
+        service.candidates(current, limit ?? 10),
       doubleblind_interest: (params) =>
-        service.interest(caller, new InterestRequest(params)),
+        service.interest(current, new InterestRequest(params)),
       doubleblind_propose: (params) =>
-        service.propose(caller, new ProposeRequest(params)),
+        service.propose(current, new ProposeRequest(params)),
       doubleblind_confirm: (params) =>
-        service.confirm(caller, new ConfirmRequest(params)),
-      doubleblind_delete: () => service.deleteProfile(caller),
-      doubleblind_setups: () => service.setups(caller),
+        service.confirm(current, new ConfirmRequest(params)),
+      doubleblind_delete: () => service.deleteProfile(current),
+      doubleblind_setups: () => service.setups(current),
     }
   })
 )

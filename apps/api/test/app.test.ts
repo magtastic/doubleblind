@@ -1,6 +1,10 @@
 import { describe, expect, test } from 'bun:test'
 import { Effect } from 'effect'
-import { handler } from '../src/http.ts'
+import { makeWebHandler } from '../src/http.ts'
+import { Doubleblind } from '../src/service.ts'
+
+// No database: the service stubs need none, so tests stay hermetic.
+const { handler } = makeWebHandler(Doubleblind.Default)
 
 const validProfile = {
   age: 34,

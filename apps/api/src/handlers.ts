@@ -2,10 +2,10 @@ import { HealthResponse } from '@doubleblind/shared'
 import { HttpApiBuilder } from '@effect/platform'
 import { Effect, Layer, Redacted } from 'effect'
 import { BearerAuth, DoubleblindApi } from './api.ts'
-import { CurrentCaller, Doubleblind } from './service.ts'
+import { CurrentProfile, Doubleblind } from './service.ts'
 
 /**
- * Bearer auth placeholder: reads the token and puts a caller in context.
+ * Bearer auth placeholder: reads the token and puts a profile in context.
  * It does not reject anything yet — see the TODO on BearerAuth.
  */
 export const BearerAuthLive = Layer.succeed(
@@ -29,34 +29,36 @@ export const DoubleblindGroupLive = HttpApiBuilder.group(
         )
         .handle('publish', ({ payload }) => service.publish(payload))
         .handle('candidates', ({ urlParams }) =>
-          CurrentCaller.pipe(
-            Effect.flatMap((caller) =>
-              service.candidates(caller, urlParams.limit)
+          CurrentProfile.pipe(
+            Effect.flatMap((current) =>
+              service.candidates(current, urlParams.limit)
             )
           )
         )
         .handle('interest', ({ payload }) =>
-          CurrentCaller.pipe(
-            Effect.flatMap((caller) => service.interest(caller, payload))
+          CurrentProfile.pipe(
+            Effect.flatMap((current) => service.interest(current, payload))
           )
         )
         .handle('propose', ({ payload }) =>
-          CurrentCaller.pipe(
-            Effect.flatMap((caller) => service.propose(caller, payload))
+          CurrentProfile.pipe(
+            Effect.flatMap((current) => service.propose(current, payload))
           )
         )
         .handle('confirm', ({ payload }) =>
-          CurrentCaller.pipe(
-            Effect.flatMap((caller) => service.confirm(caller, payload))
+          CurrentProfile.pipe(
+            Effect.flatMap((current) => service.confirm(current, payload))
           )
         )
         .handle('deleteProfile', () =>
-          CurrentCaller.pipe(
-            Effect.flatMap((caller) => service.deleteProfile(caller))
+          CurrentProfile.pipe(
+            Effect.flatMap((current) => service.deleteProfile(current))
           )
         )
         .handle('setups', () =>
-          CurrentCaller.pipe(Effect.flatMap((caller) => service.setups(caller)))
+          CurrentProfile.pipe(
+            Effect.flatMap((current) => service.setups(current))
+          )
         )
     })
-).pipe(Layer.provide(Doubleblind.Default))
+)

@@ -14,16 +14,16 @@ import { NotImplemented } from '@doubleblind/shared'
 import { Context, Effect } from 'effect'
 
 /**
- * The authenticated caller, resolved from the bearer token issued at publish.
+ * The authenticated profile, resolved from the bearer token issued at publish.
  */
-export interface Caller {
+export interface AuthenticatedProfile {
   readonly profileId: string
   readonly token: string
 }
 
-export class CurrentCaller extends Context.Tag('CurrentCaller')<
-  CurrentCaller,
-  Caller
+export class CurrentProfile extends Context.Tag('CurrentProfile')<
+  CurrentProfile,
+  AuthenticatedProfile
 >() {}
 
 /** Every stub returns this shape: fails, but declares its eventual success. */
@@ -44,26 +44,30 @@ export class Doubleblind extends Effect.Service<Doubleblind>()('Doubleblind', {
     publish: (_profile: Profile): Stub<PublishResponse> =>
       notImplemented('publish'),
 
-    candidates: (_caller: Caller, _limit: number): Stub<CandidatesResponse> =>
-      notImplemented('candidates'),
+    candidates: (
+      _current: AuthenticatedProfile,
+      _limit: number
+    ): Stub<CandidatesResponse> => notImplemented('candidates'),
 
     interest: (
-      _caller: Caller,
+      _current: AuthenticatedProfile,
       _request: InterestRequest
     ): Stub<InterestResponse> => notImplemented('interest'),
 
     propose: (
-      _caller: Caller,
+      _current: AuthenticatedProfile,
       _request: ProposeRequest
     ): Stub<ProposeResponse> => notImplemented('propose'),
 
     confirm: (
-      _caller: Caller,
+      _current: AuthenticatedProfile,
       _request: ConfirmRequest
     ): Stub<ConfirmResponse> => notImplemented('confirm'),
 
-    deleteProfile: (_caller: Caller): Stub<void> => notImplemented('delete'),
+    deleteProfile: (_current: AuthenticatedProfile): Stub<void> =>
+      notImplemented('delete'),
 
-    setups: (_caller: Caller): Stub<SetupsResponse> => notImplemented('setups'),
+    setups: (_current: AuthenticatedProfile): Stub<SetupsResponse> =>
+      notImplemented('setups'),
   },
 }) {}
