@@ -1,10 +1,31 @@
-import { describe, expect, test } from 'bun:test'
+import { afterAll, describe, expect, test } from 'bun:test'
+import {
+  Conflict,
+  NotFound,
+  PublishResponse,
+  RateLimited,
+} from '@doubleblind/shared'
 import { Effect } from 'effect'
-import { makeWebHandler } from '../src/http.ts'
-import { Doubleblind } from '../src/service.ts'
+import {
+  disposeHandlers,
+  openHandler,
+  type WebHandler,
+} from './support/app-handler.ts'
+import { GONE_TOKEN, GOOD_TOKEN, UNKNOWN_TOKEN } from './support/fake-caller.ts'
+import {
+  FAKE_PROFILE_ID,
+  FAKE_SETUP_ID,
+  fakeApp,
+} from './support/fake-doubleblind.ts'
 
-// No database: the service stubs need none, so tests stay hermetic.
-const { handler } = makeWebHandler(Doubleblind.Default)
+/**
+ * Transport tests. The service is faked, but routing, schema validation, the
+ * bearer middleware and the mapping from a declared failure to an HTTP status
+ * all run for real — that mapping is the thing worth proving, because REST and
+ * MCP read it out of the same contract.
+ */
+
+afterAll(disposeHandlers)
 
 const validProfile = {
   age: 34,
@@ -25,20 +46,40 @@ const validProfile = {
   },
 }
 
-/** Drives the same web handler that the Vercel Function exports. */
-const request = (path: string, init?: RequestInit) =>
-  Effect.promise(() => handler(new Request(`http://localhost${path}`, init)))
+const validProposal = {
+  setupId: FAKE_SETUP_ID,
+  proposal: {
+    venue: { name: 'Kaffihús Vesturbæjar', address: 'Melhagi 20, 107' },
+    slots: ['2026-09-18T19:30:00Z'],
+  },
+}
 
-const postJson = (path: string, body: unknown) =>
-  request(path, {
+/** Drives the same web handler that the Vercel Function exports. */
+const request = (handler: WebHandler, path: string, init?: RequestInit) =>
+  Effect.promise(() =>
+    handler(
+      new Request(`http://localhost${path}`, {
+        ...init,
+        headers: {
+          authorization: `Bearer ${GOOD_TOKEN}`,
+          ...init?.headers,
+        },
+      })
+    )
+  )
+
+const postJson = (handler: WebHandler, path: string, body: unknown) =>
+  request(handler, path, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body),
   })
 
 describe('GET /health', () => {
+  const handler = openHandler(fakeApp())
+
   test('returns ok', async () => {
-    const res = await Effect.runPromise(request('/health'))
+    const res = await Effect.runPromise(request(handler, '/health'))
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual({ ok: true })
   })
@@ -46,18 +87,140 @@ describe('GET /health', () => {
 
 describe('POST /publish', () => {
   test('rejects an invalid body with 400', async () => {
+    const handler = openHandler(fakeApp())
     const res = await Effect.runPromise(
-      postJson('/publish', { ...validProfile, age: 12 })
+      postJson(handler, '/publish', { ...validProfile, age: 12 })
     )
     expect(res.status).toBe(400)
   })
 
-  test('accepts a valid body and reports not_implemented', async () => {
-    const res = await Effect.runPromise(postJson('/publish', validProfile))
-    expect(res.status).toBe(501)
-    expect(await res.json()).toMatchObject({
-      _tag: 'NotImplemented',
-      operation: 'publish',
+  test('returns the profileId and token the service issued', async () => {
+    const handler = openHandler(
+      fakeApp({
+        publish: () =>
+          Effect.succeed(
+            new PublishResponse({
+              profileId: FAKE_PROFILE_ID,
+              token: 'issued-once',
+            })
+          ),
+      })
+    )
+    const res = await Effect.runPromise(
+      postJson(handler, '/publish', validProfile)
+    )
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({
+      profileId: FAKE_PROFILE_ID,
+      token: 'issued-once',
     })
+  })
+})
+
+describe('declared failures map to their status', () => {
+  test('401 when the token does not resolve to a profile', async () => {
+    const handler = openHandler(fakeApp())
+    const res = await Effect.runPromise(
+      request(handler, '/candidates', {
+        headers: { authorization: `Bearer ${UNKNOWN_TOKEN}` },
+      })
+    )
+    expect(res.status).toBe(401)
+    expect(await res.json()).toMatchObject({ _tag: 'Unauthorized' })
+  })
+
+  test('401 when there is no Authorization header at all', async () => {
+    const handler = openHandler(fakeApp())
+    const res = await Effect.runPromise(
+      Effect.promise(() => handler(new Request('http://localhost/candidates')))
+    )
+    expect(res.status).toBe(401)
+    expect(await res.json()).toMatchObject({ _tag: 'Unauthorized' })
+  })
+
+  test('410 when the profile has expired', async () => {
+    const handler = openHandler(fakeApp())
+    const res = await Effect.runPromise(
+      request(handler, '/setups', {
+        headers: { authorization: `Bearer ${GONE_TOKEN}` },
+      })
+    )
+    expect(res.status).toBe(410)
+    expect(await res.json()).toMatchObject({ _tag: 'Gone' })
+  })
+
+  test('404 when the interest target is unknown', async () => {
+    const handler = openHandler(fakeApp({ interest: () => new NotFound() }))
+    const res = await Effect.runPromise(
+      postJson(handler, '/interest', { profileId: FAKE_PROFILE_ID })
+    )
+    expect(res.status).toBe(404)
+    expect(await res.json()).toMatchObject({ _tag: 'NotFound' })
+  })
+
+  test('409 when the setup is in the wrong status, with that status', async () => {
+    const handler = openHandler(
+      fakeApp({ propose: () => new Conflict({ status: 'countered' }) })
+    )
+    const res = await Effect.runPromise(
+      postJson(handler, '/propose', validProposal)
+    )
+    expect(res.status).toBe(409)
+    expect(await res.json()).toMatchObject({
+      _tag: 'Conflict',
+      status: 'countered',
+    })
+  })
+
+  test('429 when the weekly interest cap is reached, with retry-after', async () => {
+    const handler = openHandler(
+      fakeApp({
+        interest: () => new RateLimited({ retryAfterSeconds: 3600 }),
+      })
+    )
+    const res = await Effect.runPromise(
+      postJson(handler, '/interest', { profileId: FAKE_PROFILE_ID })
+    )
+    expect(res.status).toBe(429)
+    expect(await res.json()).toMatchObject({
+      _tag: 'RateLimited',
+      retryAfterSeconds: 3600,
+    })
+  })
+})
+
+describe('POST /decline', () => {
+  test('returns the settled status', async () => {
+    const handler = openHandler(fakeApp())
+    const res = await Effect.runPromise(
+      postJson(handler, '/decline', { setupId: FAKE_SETUP_ID })
+    )
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ status: 'declined' })
+  })
+
+  test('409 when the setup is past declining, with that status', async () => {
+    const handler = openHandler(
+      fakeApp({ decline: () => new Conflict({ status: 'confirmed' }) })
+    )
+    const res = await Effect.runPromise(
+      postJson(handler, '/decline', { setupId: FAKE_SETUP_ID })
+    )
+    expect(res.status).toBe(409)
+    expect(await res.json()).toMatchObject({
+      _tag: 'Conflict',
+      status: 'confirmed',
+    })
+  })
+})
+
+describe('DELETE /profile', () => {
+  test('returns 204 and no body', async () => {
+    const handler = openHandler(fakeApp())
+    const res = await Effect.runPromise(
+      request(handler, '/profile', { method: 'DELETE' })
+    )
+    expect(res.status).toBe(204)
+    expect(await res.text()).toBe('')
   })
 })

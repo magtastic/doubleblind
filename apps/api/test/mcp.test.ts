@@ -1,9 +1,26 @@
-import { describe, expect, test } from 'bun:test'
-import { makeWebHandler } from '../src/http.ts'
-import { Doubleblind } from '../src/service.ts'
+import { afterAll, describe, expect, test } from 'bun:test'
+import {
+  CandidatesResponse,
+  DeclineResponse,
+  NotFound,
+} from '@doubleblind/shared'
+import { Effect } from 'effect'
+import { disposeHandlers, openHandler } from './support/app-handler.ts'
+import { GONE_TOKEN, GOOD_TOKEN, UNKNOWN_TOKEN } from './support/fake-caller.ts'
+import {
+  FAKE_PROFILE_ID,
+  FAKE_SETUP_ID,
+  fakeApp,
+} from './support/fake-doubleblind.ts'
+import { callTool, initialize, readRpc, rpc } from './support/mcp-client.ts'
 
-// No database: the service stubs need none, so tests stay hermetic.
-const { handler } = makeWebHandler(Doubleblind.Default)
+/**
+ * MCP is the primary interface, so the tool list is part of the contract and a
+ * declared failure has to arrive as a tool error the agent can read, not as a
+ * protocol error that looks like the server is broken.
+ */
+
+afterAll(disposeHandlers)
 
 const TOOLS = [
   'doubleblind_publish',
@@ -11,51 +28,35 @@ const TOOLS = [
   'doubleblind_interest',
   'doubleblind_propose',
   'doubleblind_confirm',
+  'doubleblind_decline',
   'doubleblind_setups',
   'doubleblind_delete',
 ]
 
-/** Streamable HTTP responses may arrive as JSON or as a single SSE event. */
-const readRpc = async (res: Response): Promise<unknown> => {
-  const text = await res.text()
-  const data = text
-    .split('\n')
-    .filter((line) => line.startsWith('data:'))
-    .map((line) => line.slice(5).trim())
-  return JSON.parse(data.length > 0 ? data.join('') : text)
+const VALID_PROFILE = {
+  age: 34,
+  gender: 'woman',
+  interestedIn: ['man'],
+  city: 'Reykjavík',
+  country: 'IS',
+  radiusKm: 25,
+  availability: 'weekday evenings',
+  brief:
+    'She is a hydrologist who reads the weather like other people read faces. ' +
+    'She values directness and dislikes being managed. Dealbreaker: anyone ' +
+    'who calls hiking a hobby and means a car park.',
+  privateLayer: { firstName: 'Sigrún', phone: '+3548221234' },
 }
 
-const rpc = (body: unknown, session?: string | null) =>
-  handler(
-    new Request('http://localhost/mcp', {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        accept: 'application/json, text/event-stream',
-        ...(session ? { 'mcp-session-id': session } : {}),
-      },
-      body: JSON.stringify(body),
-    })
-  )
-
 describe('MCP /mcp', () => {
-  test('lists the seven doubleblind tools', async () => {
-    const init = await rpc({
-      jsonrpc: '2.0',
-      id: 1,
-      method: 'initialize',
-      params: {
-        protocolVersion: '2025-06-18',
-        capabilities: {},
-        clientInfo: { name: 'test', version: '0' },
-      },
-    })
-    expect(init.status).toBe(200)
-    const session = init.headers.get('mcp-session-id')
+  test('lists the eight doubleblind tools', async () => {
+    const handler = openHandler(fakeApp())
+    const session = await initialize(handler)
 
     const res = await rpc(
-      { jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} },
-      session
+      handler,
+      { method: 'tools/list', params: {} },
+      { session }
     )
     expect(res.status).toBe(200)
     const json = (await readRpc(res)) as {
@@ -64,5 +65,121 @@ describe('MCP /mcp', () => {
     expect(json.result.tools.map((t) => t.name).sort()).toEqual(
       [...TOOLS].sort()
     )
+  })
+
+  test('a declared failure comes back as a tool error, not a protocol error', async () => {
+    const handler = openHandler(fakeApp({ interest: () => new NotFound() }))
+    const session = await initialize(handler)
+
+    const json = await callTool(
+      handler,
+      'doubleblind_interest',
+      { profileId: FAKE_PROFILE_ID },
+      { session, token: GOOD_TOKEN }
+    )
+
+    expect(json.error).toBeUndefined()
+    expect(json.result.isError).toBe(true)
+    expect(json.result.structuredContent).toMatchObject({ _tag: 'NotFound' })
+  })
+
+  test('decline reaches the service and answers with the settled status', async () => {
+    const seen: Array<string> = []
+    const handler = openHandler(
+      fakeApp({
+        decline: (_current, request) => {
+          seen.push(request.setupId)
+          return Effect.succeed(new DeclineResponse({ status: 'declined' }))
+        },
+      })
+    )
+    const session = await initialize(handler)
+
+    const json = await callTool(
+      handler,
+      'doubleblind_decline',
+      { setupId: FAKE_SETUP_ID },
+      { session, token: GOOD_TOKEN }
+    )
+
+    expect(json.result.isError).toBeFalsy()
+    expect(json.result.structuredContent).toMatchObject({ status: 'declined' })
+    expect(seen).toEqual([FAKE_SETUP_ID])
+  })
+})
+
+/**
+ * The reason the MCP adapter reads the header per call instead of resolving a
+ * profile when the layer is built: one server, many agents, and a token that
+ * can go stale mid-session.
+ */
+describe('MCP authentication is per call', () => {
+  const call = async (token: string | undefined) => {
+    const handler = openHandler(fakeApp())
+    const session = await initialize(handler)
+    return callTool(handler, 'doubleblind_setups', {}, { session, token })
+  }
+
+  test('an authenticated tool without a token is a typed Unauthorized', async () => {
+    const json = await call(undefined)
+
+    expect(json.error).toBeUndefined()
+    expect(json.result.isError).toBe(true)
+    expect(json.result.structuredContent).toMatchObject({
+      _tag: 'Unauthorized',
+    })
+  })
+
+  test('an unknown token is Unauthorized', async () => {
+    const json = await call(UNKNOWN_TOKEN)
+
+    expect(json.result.isError).toBe(true)
+    expect(json.result.structuredContent).toMatchObject({
+      _tag: 'Unauthorized',
+    })
+  })
+
+  test('an expired profile is Gone, so the agent knows to republish', async () => {
+    const json = await call(GONE_TOKEN)
+
+    expect(json.result.isError).toBe(true)
+    expect(json.result.structuredContent).toMatchObject({ _tag: 'Gone' })
+  })
+
+  test('a good token reaches the service as the profile it resolves to', async () => {
+    const seen: Array<string> = []
+    const handler = openHandler(
+      fakeApp({
+        candidates: (current) => {
+          seen.push(current.profileId)
+          return Effect.succeed(new CandidatesResponse({ candidates: [] }))
+        },
+      })
+    )
+    const session = await initialize(handler)
+
+    const json = await callTool(
+      handler,
+      'doubleblind_candidates',
+      { limit: 3 },
+      { session, token: GOOD_TOKEN }
+    )
+
+    expect(json.result.isError).toBeFalsy()
+    expect(seen).toEqual([FAKE_PROFILE_ID])
+  })
+
+  test('publish needs no token: it is how an agent gets one', async () => {
+    const handler = openHandler(fakeApp())
+    const session = await initialize(handler)
+
+    const json = await callTool(handler, 'doubleblind_publish', VALID_PROFILE, {
+      session,
+    })
+
+    expect(json.result.isError).toBeFalsy()
+    expect(json.result.structuredContent).toMatchObject({
+      profileId: FAKE_PROFILE_ID,
+    })
   })
 })

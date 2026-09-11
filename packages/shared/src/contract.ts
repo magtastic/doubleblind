@@ -1,3 +1,4 @@
+import { HttpApiSchema } from '@effect/platform'
 import { Schema } from 'effect'
 
 /**
@@ -50,7 +51,10 @@ export const PhoneNumber = Schema.String.pipe(
 })
 
 export const ProfileId = Schema.UUID.annotations({ identifier: 'ProfileId' })
+export type ProfileId = typeof ProfileId.Type
+
 export const SetupId = Schema.UUID.annotations({ identifier: 'SetupId' })
+export type SetupId = typeof SetupId.Type
 
 /** ISO-8601 instant, e.g. 2026-09-18T19:30:00Z. */
 export const Timestamp = Schema.String.pipe(
@@ -156,6 +160,12 @@ export class Setup extends Schema.Class<Setup>('Setup')({
   confirmedSlot: Schema.NullOr(Timestamp),
   /** Whether the caller has confirmed. The counterpart's flag is not exposed. */
   youConfirmed: Schema.Boolean,
+  /**
+   * The counterpart's private layer, present only once the setup is
+   * confirmed. Listing setups is how an agent recovers it after the
+   * confirm call, so it does not have to store it.
+   */
+  counterpartPrivateLayer: Schema.optional(PrivateLayer),
   createdAt: Timestamp,
   updatedAt: Timestamp,
   expiresAt: Timestamp,
@@ -195,6 +205,16 @@ export class ConfirmRequest extends Schema.Class<ConfirmRequest>(
 )({
   setupId: SetupId,
   slot: Timestamp,
+}) {}
+
+/**
+ * Declining takes the setup and nothing else. PRODUCT.md, Voice: "No is
+ * always enough. Never ask why." — so there is no reason to carry.
+ */
+export class DeclineRequest extends Schema.Class<DeclineRequest>(
+  'DeclineRequest'
+)({
+  setupId: SetupId,
 }) {}
 
 /* -------------------------------------------------------------------------- */
@@ -245,6 +265,13 @@ export class ConfirmResponse extends Schema.Class<ConfirmResponse>(
   privateLayer: Schema.optional(PrivateLayer),
 }) {}
 
+/** Always `declined`: the call either settles the setup or fails. */
+export class DeclineResponse extends Schema.Class<DeclineResponse>(
+  'DeclineResponse'
+)({
+  status: SetupStatus,
+}) {}
+
 export class SetupsResponse extends Schema.Class<SetupsResponse>(
   'SetupsResponse'
 )({
@@ -255,30 +282,89 @@ export class SetupsResponse extends Schema.Class<SetupsResponse>(
 /*  Errors                                                                    */
 /* -------------------------------------------------------------------------- */
 
-/** Every stubbed operation fails with this until the service is built out. */
-export class NotImplemented extends Schema.TaggedError<NotImplemented>()(
-  'NotImplemented',
-  { operation: Schema.String }
-) {}
+/**
+ * Every declared error carries its HTTP status here, where the error is
+ * defined, so REST and MCP cannot disagree about what a failure means. The
+ * adapters consume the unions below and never re-annotate.
+ *
+ * 400 comes free from schema validation; these are the rest.
+ */
 
 export class Unauthorized extends Schema.TaggedError<Unauthorized>()(
   'Unauthorized',
-  {}
+  {},
+  HttpApiSchema.annotations<Unauthorized>({ status: 401 })
 ) {}
 
 /** Unknown setup or profile. */
-export class NotFound extends Schema.TaggedError<NotFound>()('NotFound', {}) {}
+export class NotFound extends Schema.TaggedError<NotFound>()(
+  'NotFound',
+  {},
+  HttpApiSchema.annotations<NotFound>({ status: 404 })
+) {}
 
 /** The action is not valid for the setup's current status, e.g. a second counter. */
-export class Conflict extends Schema.TaggedError<Conflict>()('Conflict', {
-  status: SetupStatus,
-}) {}
+export class Conflict extends Schema.TaggedError<Conflict>()(
+  'Conflict',
+  { status: SetupStatus },
+  HttpApiSchema.annotations<Conflict>({ status: 409 })
+) {}
 
-/** The profile has expired (90 days without a check-in) or was deleted. */
-export class Gone extends Schema.TaggedError<Gone>()('Gone', {}) {}
+/** The profile expired: 90 days without a check-in. */
+export class Gone extends Schema.TaggedError<Gone>()(
+  'Gone',
+  {},
+  HttpApiSchema.annotations<Gone>({ status: 410 })
+) {}
 
 /** Weekly interest cap reached. */
 export class RateLimited extends Schema.TaggedError<RateLimited>()(
   'RateLimited',
-  { retryAfterSeconds: Schema.Int }
+  { retryAfterSeconds: Schema.Int },
+  HttpApiSchema.annotations<RateLimited>({ status: 429 })
 ) {}
+
+/* -------------------------------------------------------------------------- */
+/*  Failure unions, one per operation                                         */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Resolving the bearer token can fail two ways, and every authenticated
+ * operation inherits both. This is what the REST middleware declares.
+ */
+export const AuthError = Schema.Union(Unauthorized, Gone)
+export type AuthError = typeof AuthError.Type
+
+/**
+ * Publishing is open signup, so nothing about it is a declared failure: a bad
+ * body is a 400 from schema validation, and an embedding or database outage is
+ * a defect, not something an agent can act on.
+ */
+export const PublishError = Schema.Never
+export type PublishError = typeof PublishError.Type
+
+export const CandidatesError = AuthError
+export type CandidatesError = AuthError
+
+export const DeleteError = AuthError
+export type DeleteError = AuthError
+
+export const SetupsError = AuthError
+export type SetupsError = AuthError
+
+export const InterestError = Schema.Union(
+  Unauthorized,
+  Gone,
+  NotFound,
+  RateLimited
+)
+export type InterestError = typeof InterestError.Type
+
+export const ProposeError = Schema.Union(Unauthorized, Gone, NotFound, Conflict)
+export type ProposeError = typeof ProposeError.Type
+
+export const ConfirmError = ProposeError
+export type ConfirmError = ProposeError
+
+export const DeclineError = ProposeError
+export type DeclineError = ProposeError

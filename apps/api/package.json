@@ -12,11 +12,13 @@
     "@doubleblind/db": "workspace:*",
     "@doubleblind/shared": "workspace:*",
     "@effect/ai": "catalog:",
+    "@effect/ai-openai": "catalog:",
     "@effect/experimental": "catalog:",
     "@effect/platform": "catalog:",
     "@effect/platform-bun": "catalog:",
     "@effect/rpc": "catalog:",
     "@effect/sql": "catalog:",
+    "drizzle-orm": "catalog:",
     "effect": "catalog:"
   },
   "devDependencies": {

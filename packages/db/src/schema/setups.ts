@@ -16,8 +16,12 @@ import { profiles } from './profiles.ts'
 export const setupStatusEnum = pgEnum('setup_status', SETUP_STATUSES)
 
 /**
- * A mutual match. `profileAId < profileBId` always, so a pair has exactly one
- * row regardless of who expressed interest first.
+ * A pair. `profileAId < profileBId` always, so a pair has exactly one row
+ * regardless of who expressed interest first.
+ *
+ * One-way interest lives here too, in `interestedAAt` / `interestedBAt`: a row
+ * with only one of them set is `interest_pending` and is visible only to that
+ * side. PRODUCT.md: interest is "invisible to the other side until mutual".
  */
 export const setups = pgTable(
   'setups',
@@ -30,6 +34,9 @@ export const setups = pgTable(
       .notNull()
       .references(() => profiles.id, { onDelete: 'cascade' }),
     status: setupStatusEnum().notNull().default('interest_pending'),
+    /** When each side expressed interest. Null means they have not. */
+    interestedAAt: timestamp({ withTimezone: true }),
+    interestedBAt: timestamp({ withTimezone: true }),
     proposal: jsonb().$type<Proposal>(),
     counter: jsonb().$type<Proposal>(),
     confirmedSlot: timestamp({ withTimezone: true }),
