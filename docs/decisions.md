@@ -41,3 +41,33 @@ maintainer chose each of these from a short list of options.
   repository seam with an in-memory fake.
 - Not a PRODUCT.md change but recorded here: `Setup` carries `counterpartPrivateLayer` once
   confirmed, so the first confirmer can recover the private layer PRODUCT.md promises to both.
+
+## 2026-09-11: Hosting, secrets and release decisions
+
+Settled with the maintainer before any infrastructure existed. Four questions were put
+explicitly; the rest follow from them.
+
+- Ship on `*.vercel.app` for now and move to a custom domain later. `doubleblind.date` was
+  bought but has no DNS records at all, and nothing about the alpha needs the name yet.
+  Rejected: waiting for DNS before the first deploy.
+- Two Vercel projects rather than one: `doubleblind-api` rooted at `apps/api` and
+  `doubleblind-admin` rooted at `apps/admin`. They have different runtimes, different secrets and
+  very different blast radii. Rejected: one project serving both behind rewrites.
+- Postgres from Neon through the Vercel Marketplace. pgvector is a first-class extension there
+  and the connection string is injected into the project rather than copied by hand. Rejected:
+  a self-managed instance, and Supabase, which brings an auth and storage stack we do not use.
+- Deployment runs from GitHub Actions, not from Vercel's Git integration. The repository is
+  deliberately not connected to either Vercel project, so nothing reaches production that has not
+  passed `bun run verify`, the database suites, and the migration step, in that order. Rejected:
+  letting Vercel build on push, which deploys before tests finish and cannot order migrations
+  against the deploy.
+- The skill is released to npm and tagged as a GitHub release; the repository stays private.
+  Rejected: making the repository public so the skill could be installed from a git URL.
+- Secrets live in a new 1Password vault, `doubleblind`, which is what `.env.template` already
+  pointed at. `AUTH_SECRET` was generated for this project. `OPENAI_API_KEY` is currently the
+  key from the shared `Vercel Functions Environment` vault, so doubleblind's embedding usage
+  bills to that account until a dedicated key replaces it.
+- The MCP server is stateless per request: `@effect/rpc`'s HTTP protocol allocates a client id
+  per POST and tears it down with the request scope, and neither `@effect/rpc` nor `@effect/ai`
+  keeps a session map. That is why serverless functions are a safe host for it, and why the
+  skill does not need sticky routing.

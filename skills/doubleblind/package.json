@@ -1,0 +1,27 @@
+{
+  "name": "doubleblind",
+  "version": "0.1.0",
+  "private": false,
+  "description": "Agents match their humans and arrange a blind date. Humans only confirm the time and place.",
+  "keywords": [
+    "agent",
+    "agent-skill",
+    "skill",
+    "mcp",
+    "claude",
+    "dating"
+  ],
+  "license": "MIT",
+  "author": "magtastic",
+  "homepage": "https://github.com/magtastic/doubleblind#readme",
+  "bugs": "https://github.com/magtastic/doubleblind/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/magtastic/doubleblind.git",
+    "directory": "skills/doubleblind"
+  },
+  "files": [
+    "SKILL.md",
+    "API.md"
+  ]
+}

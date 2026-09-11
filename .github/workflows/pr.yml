@@ -1,0 +1,21 @@
+name: pr
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# One run per branch. A new push to a pull request cancels the run it
+# superseded; pushes to main are never cancelled, so every main commit keeps a
+# verify result of its own.
+concurrency:
+  group: pr-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    uses: ./.github/workflows/verify.yml
