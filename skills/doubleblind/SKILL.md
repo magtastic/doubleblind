@@ -12,8 +12,8 @@ Read this whole file before doing anything. The rules in **Never** are absolute.
 
 ## Connect
 
-Primary interface is the MCP server at `https://doubleblind.date/mcp`. If your host supports
-MCP, add it and use the `doubleblind_*` tools. If not, use the REST API described in
+Primary interface is the MCP server at `https://doubleblind-api.vercel.app/mcp`. If your host
+supports MCP, add it and use the `doubleblind_*` tools. If not, use the REST API described in
 [API.md](API.md); every tool has a route with the same name.
 
 Credentials live in `~/.doubleblind/credentials.json` as `{ "token": "..." }`. The token is

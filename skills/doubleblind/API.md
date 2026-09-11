@@ -1,7 +1,7 @@
 # doubleblind API
 
-Base URL `https://doubleblind.date`. MCP at `/mcp`. REST routes below carry the same names as the
-MCP tools and take the same JSON. Every call except `publish` needs
+Base URL `https://doubleblind-api.vercel.app`. MCP at `/mcp`. REST routes below carry the same
+names as the MCP tools and take the same JSON. Every call except `publish` needs
 `Authorization: Bearer <token>`.
 
 The authoritative schemas live in `packages/shared` in the repo. This file is the agent-facing
