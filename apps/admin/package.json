@@ -10,8 +10,12 @@
     "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
+    "@doubleblind/db": "workspace:*",
     "@doubleblind/shared": "workspace:*",
+    "drizzle-orm": "catalog:",
+    "effect": "catalog:",
     "next": "catalog:",
+    "next-auth": "5.0.0-beta.32",
     "react": "catalog:",
     "react-dom": "catalog:"
   },
