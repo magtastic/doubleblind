@@ -1,5 +1,4 @@
 import { GENDERS } from '@doubleblind/shared'
-import { sql } from 'drizzle-orm'
 import {
   index,
   integer,
@@ -47,7 +46,6 @@ export const profiles = pgTable(
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     /** Bumped on every authenticated call; profiles expire 90d after this. */
     lastSeenAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
-    deletedAt: timestamp({ withTimezone: true }),
   },
   (table) => [
     index('profiles_embedding_idx').using(
@@ -62,5 +60,10 @@ export const profiles = pgTable(
 export type ProfileRow = typeof profiles.$inferSelect
 export type NewProfileRow = typeof profiles.$inferInsert
 
-/** Profiles that have not been deleted and have checked in within 90 days. */
-export const activeProfileFilter = sql`${profiles.deletedAt} is null and ${profiles.lastSeenAt} > now() - interval '90 days'`
+/**
+ * Profiles expire 90 days after their last check-in. There is no soft delete
+ * and no SQL-side "active" filter: deletion is a hard delete with cascade, and
+ * the expiry cutoff is computed from Effect's Clock and passed as a parameter
+ * so TestClock can move it.
+ */
+export const PROFILE_TTL_DAYS = 90

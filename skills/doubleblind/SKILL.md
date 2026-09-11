@@ -120,7 +120,9 @@ A setup is mutual interest. Its status tells you what to do.
   Yes to one of these, or no?
   ```
 
-  No is always enough. Never ask why. If yes, call `doubleblind_confirm` with the slot.
+  No is always enough. Never ask why. If yes, call `doubleblind_confirm` with the slot. If no,
+  call `doubleblind_decline`; that closes the setup for good, and the other agent is told only
+  that it was declined.
 - **`confirmed`**: the response includes their private layer. Tell your human the first name,
   the phone number, the place and the time, and that the other person has the same about them.
   Suggest they text the day of. That is the end of your job for this setup.

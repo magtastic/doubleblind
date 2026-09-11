@@ -1,5 +1,3 @@
--- Hand-added: drizzle-kit does not emit extensions, and the hnsw index on
--- profiles.embedding below needs pgvector to exist first.
 CREATE EXTENSION IF NOT EXISTS vector;--> statement-breakpoint
 CREATE TYPE "public"."gender" AS ENUM('man', 'woman', 'non_binary');--> statement-breakpoint
 CREATE TYPE "public"."setup_status" AS ENUM('interest_pending', 'mutual', 'proposed', 'countered', 'confirmed', 'declined', 'expired');--> statement-breakpoint
@@ -9,15 +7,6 @@ CREATE TABLE "admin_events" (
 	"profile_id" uuid,
 	"payload" jsonb,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
-);
---> statement-breakpoint
-CREATE TABLE "interests" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"from_profile_id" uuid NOT NULL,
-	"to_profile_id" uuid NOT NULL,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "interests_from_to_key" UNIQUE("from_profile_id","to_profile_id"),
-	CONSTRAINT "interests_no_self_interest" CHECK ("interests"."from_profile_id" <> "interests"."to_profile_id")
 );
 --> statement-breakpoint
 CREATE TABLE "profiles" (
@@ -39,7 +28,6 @@ CREATE TABLE "profiles" (
 	"standing_instructions" text,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"last_seen_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"deleted_at" timestamp with time zone,
 	CONSTRAINT "profiles_tokenHash_unique" UNIQUE("token_hash")
 );
 --> statement-breakpoint
@@ -48,6 +36,8 @@ CREATE TABLE "setups" (
 	"profile_a_id" uuid NOT NULL,
 	"profile_b_id" uuid NOT NULL,
 	"status" "setup_status" DEFAULT 'interest_pending' NOT NULL,
+	"interested_a_at" timestamp with time zone,
+	"interested_b_at" timestamp with time zone,
 	"proposal" jsonb,
 	"counter" jsonb,
 	"confirmed_slot" timestamp with time zone,
@@ -60,14 +50,11 @@ CREATE TABLE "setups" (
 	CONSTRAINT "setups_ordered_pair" CHECK ("setups"."profile_a_id" < "setups"."profile_b_id")
 );
 --> statement-breakpoint
-ALTER TABLE "interests" ADD CONSTRAINT "interests_from_profile_id_profiles_id_fk" FOREIGN KEY ("from_profile_id") REFERENCES "public"."profiles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "interests" ADD CONSTRAINT "interests_to_profile_id_profiles_id_fk" FOREIGN KEY ("to_profile_id") REFERENCES "public"."profiles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "setups" ADD CONSTRAINT "setups_profile_a_id_profiles_id_fk" FOREIGN KEY ("profile_a_id") REFERENCES "public"."profiles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "setups" ADD CONSTRAINT "setups_profile_b_id_profiles_id_fk" FOREIGN KEY ("profile_b_id") REFERENCES "public"."profiles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "admin_events_kind_idx" ON "admin_events" USING btree ("kind");--> statement-breakpoint
 CREATE INDEX "admin_events_created_at_idx" ON "admin_events" USING btree ("created_at");--> statement-breakpoint
 CREATE INDEX "admin_events_profile_id_idx" ON "admin_events" USING btree ("profile_id");--> statement-breakpoint
-CREATE INDEX "interests_to_profile_id_idx" ON "interests" USING btree ("to_profile_id");--> statement-breakpoint
 CREATE INDEX "profiles_embedding_idx" ON "profiles" USING hnsw ("embedding" vector_cosine_ops);--> statement-breakpoint
 CREATE INDEX "profiles_last_seen_at_idx" ON "profiles" USING btree ("last_seen_at");--> statement-breakpoint
 CREATE INDEX "profiles_location_idx" ON "profiles" USING btree ("country","city");--> statement-breakpoint

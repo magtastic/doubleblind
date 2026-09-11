@@ -1,24 +1,48 @@
-import type {
+import { PgDrizzle } from '@doubleblind/db'
+import { adminEvents, profiles, setups } from '@doubleblind/db/schema'
+import {
+  Candidate,
+  CandidateCore,
   CandidatesResponse,
-  ConfirmRequest,
-  ConfirmResponse,
-  InterestRequest,
-  InterestResponse,
-  Profile,
-  ProposeRequest,
-  ProposeResponse,
+  type CandidatesResponse as CandidatesResponseType,
+  type ConfirmRequest,
+  type ConfirmResponse,
+  type Conflict,
+  type DeclineRequest,
+  type DeclineResponse,
+  type InterestRequest,
+  type InterestResponse,
+  type NotFound,
+  type Profile,
+  type ProfileId,
+  type ProposeRequest,
+  type ProposeResponse,
   PublishResponse,
-  SetupsResponse,
+  type RateLimited,
+  type SetupsResponse,
 } from '@doubleblind/shared'
-import { NotImplemented } from '@doubleblind/shared'
-import { Context, Effect } from 'effect'
+import { EmbeddingModel } from '@effect/ai'
+import {
+  and,
+  arrayContains,
+  cosineDistance,
+  eq,
+  gt,
+  inArray,
+  ne,
+  notInArray,
+  or,
+} from 'drizzle-orm'
+import { Array as Arr, Clock, Context, Effect } from 'effect'
+import { SetupLifecycle } from './setups.ts'
+import { generateToken, hashToken } from './token.ts'
 
 /**
  * The authenticated profile, resolved from the bearer token issued at publish.
+ * The token itself does not travel past the Caller module.
  */
 export interface AuthenticatedProfile {
-  readonly profileId: string
-  readonly token: string
+  readonly profileId: ProfileId
 }
 
 export class CurrentProfile extends Context.Tag('CurrentProfile')<
@@ -26,48 +50,255 @@ export class CurrentProfile extends Context.Tag('CurrentProfile')<
   AuthenticatedProfile
 >() {}
 
-/** Every stub returns this shape: fails, but declares its eventual success. */
-type Stub<A> = Effect.Effect<A, NotImplemented>
-
-const notImplemented = <A>(operation: string): Stub<A> =>
-  Effect.fail(new NotImplemented({ operation }))
+/** PRODUCT.md: "Profiles expire automatically after ninety days without a check-in." */
+export const PROFILE_TTL_MS = 90 * 24 * 60 * 60 * 1000
 
 /**
- * The service layer. The HttpApi handlers and the MCP tools both call these
- * and nothing else, so the two interfaces can never drift.
+ * The service. The HttpApi handlers and the MCP tools both call these methods
+ * and nothing else, so the two interfaces cannot drift.
  *
- * Every method is a stub failing with NotImplemented, which the HttpApi maps
- * to a 501 and the MCP toolkit reports as a tool error.
+ * Failures are the operation's failures only. Resolving the caller happens
+ * before any of this is reached, so `Unauthorized` and `Gone` are not here.
+ *
+ * Every timestamp comes from `Clock` at call time, never from `now()` in SQL,
+ * so a test can move time with `TestClock`.
+ *
+ * `dependencies` carries `SetupLifecycle` and nothing else: the database and
+ * the embedding model are declared as requirements and supplied by whoever
+ * builds the layer, so `layers.ts` can point production at Postgres and OpenAI
+ * while the module tests point the same code at TEST_DATABASE_URL and a
+ * deterministic hash. `SetupLifecycle` needs only the database, so
+ * `Doubleblind.Default` still asks the outside world for exactly those two.
  */
+const now = Effect.map(Clock.currentTimeMillis, (millis) => new Date(millis))
+
 export class Doubleblind extends Effect.Service<Doubleblind>()('Doubleblind', {
-  succeed: {
-    publish: (_profile: Profile): Stub<PublishResponse> =>
-      notImplemented('publish'),
+  dependencies: [SetupLifecycle.Default],
+  effect: Effect.gen(function* () {
+    const db = yield* PgDrizzle.PgDrizzle
+    const embeddings = yield* EmbeddingModel.EmbeddingModel
+    const lifecycle = yield* SetupLifecycle
 
-    candidates: (
-      _current: AuthenticatedProfile,
-      _limit: number
-    ): Stub<CandidatesResponse> => notImplemented('candidates'),
+    return {
+      /**
+       * Open signup. Embeds the brief, stores the profile with only the hash
+       * of its token, and records the publication for the admin site.
+       */
+      publish: (profile: Profile): Effect.Effect<PublishResponse> =>
+        Effect.gen(function* () {
+          const at = yield* now
+          const token = yield* generateToken()
+          const embedding = yield* embeddings.embed(profile.brief)
 
-    interest: (
-      _current: AuthenticatedProfile,
-      _request: InterestRequest
-    ): Stub<InterestResponse> => notImplemented('interest'),
+          const inserted = yield* db
+            .insert(profiles)
+            .values({
+              tokenHash: hashToken(token),
+              age: profile.age,
+              gender: profile.gender,
+              interestedIn: [...profile.interestedIn],
+              city: profile.city,
+              country: profile.country,
+              radiusKm: profile.radiusKm,
+              availability: profile.availability,
+              brief: profile.brief,
+              embedding,
+              firstName: profile.privateLayer.firstName,
+              phone: profile.privateLayer.phone,
+              photoUrl: profile.privateLayer.photoUrl ?? null,
+              email: profile.email ?? null,
+              standingInstructions: profile.standingInstructions ?? null,
+              createdAt: at,
+              lastSeenAt: at,
+            })
+            .returning({ id: profiles.id })
 
-    propose: (
-      _current: AuthenticatedProfile,
-      _request: ProposeRequest
-    ): Stub<ProposeResponse> => notImplemented('propose'),
+          const row = inserted[0]
+          if (row === undefined) {
+            return yield* Effect.dieMessage('publish inserted no profile')
+          }
 
-    confirm: (
-      _current: AuthenticatedProfile,
-      _request: ConfirmRequest
-    ): Stub<ConfirmResponse> => notImplemented('confirm'),
+          // Nothing personal: the admin site counts signups, it does not read
+          // them. PRODUCT.md: the admin site sees counts, never briefs.
+          yield* db.insert(adminEvents).values({
+            kind: 'profile.published',
+            profileId: row.id,
+            payload: { country: profile.country, gender: profile.gender },
+            createdAt: at,
+          })
 
-    deleteProfile: (_current: AuthenticatedProfile): Stub<void> =>
-      notImplemented('delete'),
+          return new PublishResponse({ profileId: row.id, token })
+        }).pipe(Effect.orDie),
 
-    setups: (_current: AuthenticatedProfile): Stub<SetupsResponse> =>
-      notImplemented('setups'),
-  },
+      /**
+       * The top briefs for a caller, best first.
+       *
+       * Hard filters: unexpired profiles, not the caller, mutual gender
+       * interest, same country, and nobody the caller already shares a setup
+       * with. Ranking is cosine distance over brief embeddings.
+       *
+       * PRODUCT.md also lists age and distance among the hard filters. Neither
+       * can be applied: the core carries an age but no age preference, and a
+       * city and a radius but no coordinates. Flagged rather than invented.
+       */
+      candidates: (
+        current: AuthenticatedProfile,
+        limit: number
+      ): Effect.Effect<CandidatesResponseType> =>
+        Effect.gen(function* () {
+          const at = yield* now
+          const activeSince = new Date(at.getTime() - PROFILE_TTL_MS)
+
+          const callers = yield* db
+            .select({
+              gender: profiles.gender,
+              interestedIn: profiles.interestedIn,
+              country: profiles.country,
+              embedding: profiles.embedding,
+            })
+            .from(profiles)
+            .where(eq(profiles.id, current.profileId))
+            .limit(1)
+
+          const caller = callers[0]
+          // The caller's row is gone. Phase 2A's Caller module answers this
+          // with Unauthorized before the service is reached; until then an
+          // empty page is the honest answer.
+          if (caller === undefined) {
+            return new CandidatesResponse({ candidates: [] })
+          }
+          if (caller.embedding === null) {
+            return yield* Effect.dieMessage(
+              'profile has no embedding; publish always writes one'
+            )
+          }
+          if (!Arr.isNonEmptyReadonlyArray(caller.interestedIn)) {
+            return yield* Effect.dieMessage(
+              'profile has an empty interestedIn; the contract forbids it'
+            )
+          }
+
+          // Interest is symmetric for filtering purposes even though it is
+          // invisible: anyone already paired with the caller is off the list,
+          // whatever the setup's status.
+          const paired = yield* db
+            .select({ a: setups.profileAId, b: setups.profileBId })
+            .from(setups)
+            .where(
+              or(
+                eq(setups.profileAId, current.profileId),
+                eq(setups.profileBId, current.profileId)
+              )
+            )
+
+          const excluded = paired.flatMap((pair) =>
+            pair.a === current.profileId ? [pair.b] : [pair.a]
+          )
+
+          const distance = cosineDistance(profiles.embedding, caller.embedding)
+
+          const rows = yield* db
+            .select({
+              id: profiles.id,
+              age: profiles.age,
+              gender: profiles.gender,
+              interestedIn: profiles.interestedIn,
+              city: profiles.city,
+              country: profiles.country,
+              availability: profiles.availability,
+              brief: profiles.brief,
+              distance,
+            })
+            .from(profiles)
+            .where(
+              and(
+                gt(profiles.lastSeenAt, activeSince),
+                ne(profiles.id, current.profileId),
+                eq(profiles.country, caller.country),
+                inArray(profiles.gender, [...caller.interestedIn]),
+                arrayContains(profiles.interestedIn, [caller.gender]),
+                ...(excluded.length === 0
+                  ? []
+                  : [notInArray(profiles.id, excluded)])
+              )
+            )
+            .orderBy(distance)
+            .limit(limit)
+
+          const candidates: Array<Candidate> = []
+          for (const row of rows) {
+            if (!Arr.isNonEmptyReadonlyArray(row.interestedIn)) {
+              return yield* Effect.dieMessage(
+                'profile has an empty interestedIn; the contract forbids it'
+              )
+            }
+            candidates.push(
+              new Candidate({
+                profileId: row.id,
+                core: new CandidateCore({
+                  age: row.age,
+                  gender: row.gender,
+                  interestedIn: row.interestedIn,
+                  city: row.city,
+                  country: row.country,
+                  availability: row.availability,
+                }),
+                brief: row.brief,
+                score: Math.max(0, Math.min(1, 1 - Number(row.distance))),
+              })
+            )
+          }
+
+          return new CandidatesResponse({ candidates })
+        }).pipe(Effect.orDie),
+
+      /**
+       * A hard delete. The cascade takes the setups with it; the admin event
+       * outlives the profile, which is why admin_events has no foreign key.
+       */
+      deleteProfile: (current: AuthenticatedProfile): Effect.Effect<void> =>
+        Effect.gen(function* () {
+          const at = yield* now
+
+          yield* db.delete(profiles).where(eq(profiles.id, current.profileId))
+
+          yield* db.insert(adminEvents).values({
+            kind: 'profile.deleted',
+            profileId: current.profileId,
+            payload: {},
+            createdAt: at,
+          })
+        }).pipe(Effect.orDie),
+
+      /* --- The setup lifecycle. Every rule lives in SetupLifecycle; --- */
+      /* --- this is the unwrapping of the request and nothing else.  --- */
+
+      interest: (
+        current: AuthenticatedProfile,
+        request: InterestRequest
+      ): Effect.Effect<InterestResponse, NotFound | RateLimited> =>
+        lifecycle.expressInterest(current, request.profileId),
+
+      propose: (
+        current: AuthenticatedProfile,
+        request: ProposeRequest
+      ): Effect.Effect<ProposeResponse, NotFound | Conflict> =>
+        lifecycle.propose(current, request.setupId, request.proposal),
+
+      confirm: (
+        current: AuthenticatedProfile,
+        request: ConfirmRequest
+      ): Effect.Effect<ConfirmResponse, NotFound | Conflict> =>
+        lifecycle.confirm(current, request.setupId, request.slot),
+
+      decline: (
+        current: AuthenticatedProfile,
+        request: DeclineRequest
+      ): Effect.Effect<DeclineResponse, NotFound | Conflict> =>
+        lifecycle.decline(current, request.setupId),
+
+      setups: (current: AuthenticatedProfile): Effect.Effect<SetupsResponse> =>
+        lifecycle.listFor(current),
+    }
+  }),
 }) {}

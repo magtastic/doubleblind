@@ -1,5 +1,5 @@
 {
-  "id": "ebac5dbb-639c-4cff-bff6-b1de9dae9e64",
+  "id": "e83715de-8b86-48b6-9dec-a981d9471dab",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -93,102 +93,6 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.interests": {
-      "name": "interests",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "from_profile_id": {
-          "name": "from_profile_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "to_profile_id": {
-          "name": "to_profile_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "interests_to_profile_id_idx": {
-          "name": "interests_to_profile_id_idx",
-          "columns": [
-            {
-              "expression": "to_profile_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "interests_from_profile_id_profiles_id_fk": {
-          "name": "interests_from_profile_id_profiles_id_fk",
-          "tableFrom": "interests",
-          "tableTo": "profiles",
-          "columnsFrom": [
-            "from_profile_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "interests_to_profile_id_profiles_id_fk": {
-          "name": "interests_to_profile_id_profiles_id_fk",
-          "tableFrom": "interests",
-          "tableTo": "profiles",
-          "columnsFrom": [
-            "to_profile_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "interests_from_to_key": {
-          "name": "interests_from_to_key",
-          "nullsNotDistinct": false,
-          "columns": [
-            "from_profile_id",
-            "to_profile_id"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "interests_no_self_interest": {
-          "name": "interests_no_self_interest",
-          "value": "\"interests\".\"from_profile_id\" <> \"interests\".\"to_profile_id\""
-        }
-      },
       "isRLSEnabled": false
     },
     "public.profiles": {
@@ -308,12 +212,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
-        },
-        "deleted_at": {
-          "name": "deleted_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
         }
       },
       "indexes": {
@@ -415,6 +313,18 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'interest_pending'"
+        },
+        "interested_a_at": {
+          "name": "interested_a_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "interested_b_at": {
+          "name": "interested_b_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
         },
         "proposal": {
           "name": "proposal",

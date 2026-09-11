@@ -1,18 +1,21 @@
 import { HealthResponse } from '@doubleblind/shared'
 import { HttpApiBuilder } from '@effect/platform'
-import { Effect, Layer, Redacted } from 'effect'
+import { Effect, Layer } from 'effect'
 import { BearerAuth, DoubleblindApi } from './api.ts'
+import { Caller } from './caller.ts'
 import { CurrentProfile, Doubleblind } from './service.ts'
 
 /**
- * Bearer auth placeholder: reads the token and puts a profile in context.
- * It does not reject anything yet — see the TODO on BearerAuth.
+ * The REST half of authentication: the platform pulls the token out of the
+ * Authorization header, the Caller module does everything else. All this
+ * adapter contributes is the wiring, which is the point — the MCP adapter
+ * reaches the same `resolve` by a different route.
  */
-export const BearerAuthLive = Layer.succeed(
+export const BearerAuthLive = Layer.effect(
   BearerAuth,
-  BearerAuth.of({
-    bearer: (token) =>
-      Effect.succeed({ profileId: '', token: Redacted.value(token) }),
+  Effect.gen(function* () {
+    const caller = yield* Caller
+    return BearerAuth.of({ bearer: (token) => caller.resolve(token) })
   })
 )
 
@@ -48,6 +51,11 @@ export const DoubleblindGroupLive = HttpApiBuilder.group(
         .handle('confirm', ({ payload }) =>
           CurrentProfile.pipe(
             Effect.flatMap((current) => service.confirm(current, payload))
+          )
+        )
+        .handle('decline', ({ payload }) =>
+          CurrentProfile.pipe(
+            Effect.flatMap((current) => service.decline(current, payload))
           )
         )
         .handle('deleteProfile', () =>

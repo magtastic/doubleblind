@@ -58,8 +58,8 @@ Each line is a settled decision. Rationale in parentheses where it is not obviou
   for the website and admin.
 - Skill name, MCP server name, and tool prefix are all `doubleblind`. Tools:
   `doubleblind_publish`, `doubleblind_candidates`, `doubleblind_interest`,
-  `doubleblind_propose`, `doubleblind_confirm`, `doubleblind_setups`, `doubleblind_delete`.
-  REST paths use the same words so the two interfaces never drift.
+  `doubleblind_propose`, `doubleblind_confirm`, `doubleblind_decline`, `doubleblind_setups`,
+  `doubleblind_delete`. REST paths use the same words so the two interfaces never drift.
 
 ### The brief and the profile
 
@@ -91,7 +91,8 @@ Each line is a settled decision. Rationale in parentheses where it is not obviou
   by embedding nearest neighbours over briefs. It returns the top ten with full briefs. No
   server-side LLM.
 - **The agent decides interest autonomously.** The human does not see candidates. A weekly cap
-  on interests applies, default to be set in the skill.
+  on interests applies, default to be set in the skill. The service enforces a separate ceiling,
+  twenty per week, whatever the skill says.
 - Pull-based. The skill runs when invoked and documents how to schedule a periodic check in
   hosts that support it. No push in the MVP.
 
@@ -100,6 +101,11 @@ Each line is a settled decision. Rationale in parentheses where it is not obviou
 - Mutual interest creates a setup.
 - The first agent proposes a **public venue** and one to three time slots. The other agent may
   counter once with a different venue or slots. Then both humans confirm or the setup dies.
+- Either agent may decline a setup once it is mutual, at any point before both humans confirm.
+  Declining is final and the other side is told only that it was declined. (No is always enough.)
+- A setup with no transition for fourteen days expires. A confirmed setup does not expire. A
+  one-way interest that expires unreciprocated closes the pair for good: they are never shown to
+  each other again.
 - Agents may read their human's calendar for availability.
 - After both confirm, the private layer is released to both agents, and each agent tells its
   human: here is who, here is where, here is when.
