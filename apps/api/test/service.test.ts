@@ -79,6 +79,7 @@ type ProfileOverrides = {
   readonly interestedIn?: Profile['interestedIn']
   readonly country?: string
   readonly brief?: string
+  readonly photoUrl?: string
 }
 
 const profileFixture = (
@@ -94,7 +95,11 @@ const profileFixture = (
     radiusKm: 25,
     availability: 'weekday evenings, sunday afternoons',
     brief: overrides.brief ?? HYDROLOGY_BRIEF,
-    privateLayer: new PrivateLayer({ firstName, phone: '+3548221234' }),
+    privateLayer: new PrivateLayer({
+      firstName,
+      phone: '+3548221234',
+      photoUrl: overrides.photoUrl,
+    }),
   })
 
 /** Publishes a fixture and hands back the id the service issued. */
@@ -345,12 +350,15 @@ describeDb('Doubleblind service', () => {
     const SLOT = '2026-09-18T19:30:00Z'
 
     test('carries a pair from interest to a confirmed date', async () => {
+      const photoUrl =
+        'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII='
       const result = await runtime.runPromise(
         Effect.gen(function* () {
           const service = yield* Doubleblind
 
-          const one = yield* publishFixture('Sigrún')
+          const one = yield* publishFixture('Sigrún', { photoUrl })
           const two = yield* publishFixture('Jón', {
+            photoUrl,
             gender: 'man',
             interestedIn: ['woman'],
           })
@@ -387,10 +395,11 @@ describeDb('Doubleblind service', () => {
             })
           )
 
-          yield* service.confirm(
+          const firstConfirmation = yield* service.confirm(
             a,
             new ConfirmRequest({ setupId: mutual.setupId, slot: SLOT })
           )
+          const beforeBothConfirm = yield* service.setups(b)
           const confirmed = yield* service.confirm(
             b,
             new ConfirmRequest({ setupId: mutual.setupId, slot: SLOT })
@@ -398,12 +407,29 @@ describeDb('Doubleblind service', () => {
 
           const listed = yield* service.setups(a)
 
-          return { aName, bName, mutual, proposed, confirmed, listed }
+          return {
+            aName,
+            bName,
+            mutual,
+            proposed,
+            firstConfirmation,
+            beforeBothConfirm,
+            confirmed,
+            listed,
+          }
         })
       )
 
       expect(result.mutual.status).toBe('mutual')
       expect(result.proposed.status).toBe('proposed')
+      expect(result.firstConfirmation.privateLayer).toBeUndefined()
+      expect(
+        result.beforeBothConfirm.setups[0]?.counterpartPrivateLayer
+      ).toBeUndefined()
+      expect(result.confirmed.privateLayer?.photoUrl).toBe(photoUrl)
+      expect(result.listed.setups[0]?.counterpartPrivateLayer?.photoUrl).toBe(
+        photoUrl
+      )
       expect(result.confirmed.status).toBe('confirmed')
       // b confirms last, so b is handed a's private layer.
       expect(result.confirmed.privateLayer?.firstName).toBe(result.aName)

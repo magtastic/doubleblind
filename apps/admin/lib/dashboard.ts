@@ -1,0 +1,288 @@
+import { DbLive, PgDrizzle } from '@doubleblind/db'
+import {
+  adminEvents,
+  PROFILE_TTL_DAYS,
+  profiles,
+  setups,
+} from '@doubleblind/db/schema'
+import { SETUP_STATUSES, type SetupStatus } from '@doubleblind/shared'
+import { desc, inArray, sql } from 'drizzle-orm'
+import { Cause, Clock, Effect, Schema } from 'effect'
+import { isSuperAdmin } from './access.ts'
+
+/**
+ * Everything the console reads out of Postgres.
+ *
+ * This module is the only place in the admin app that talks to the database:
+ * it builds the layer, runs the queries and hands back plain data, so the
+ * components stay dumb and never import Effect.
+ *
+ * Profile overviews select the published brief and matching fields explicitly.
+ * Private details are queried only for the super admin, identified by a verified
+ * session email. Token hashes are never selected.
+ */
+
+const DAY_MS = 24 * 60 * 60 * 1000
+
+/** How close to the 90-day cutoff counts as "about to go". */
+const EXPIRING_SOON_DAYS = 7
+
+export interface ProfileCounts {
+  readonly total: number
+  readonly live: number
+  readonly expiringSoon: number
+  readonly expired: number
+}
+
+export interface SetupCount {
+  readonly status: SetupStatus
+  readonly count: number
+}
+
+export interface AdminEvent {
+  readonly id: string
+  readonly kind: string
+  readonly profileId: string | null
+  /** ISO-8601, formatted here so the component does no date work. */
+  readonly createdAt: string
+}
+
+export const ProfileOverview = Schema.Struct({
+  id: Schema.String,
+  age: Schema.Number,
+  gender: Schema.String,
+  interestedIn: Schema.Array(Schema.String),
+  city: Schema.String,
+  country: Schema.String,
+  radiusKm: Schema.Number,
+  availability: Schema.String,
+  brief: Schema.String,
+  createdAt: Schema.String,
+  lastSeenAt: Schema.String,
+  expired: Schema.Boolean,
+  privateDetails: Schema.optional(
+    Schema.Struct({
+      firstName: Schema.String,
+      phone: Schema.String,
+      email: Schema.NullOr(Schema.String),
+      photoUrl: Schema.NullOr(Schema.String),
+      standingInstructions: Schema.NullOr(Schema.String),
+    })
+  ),
+})
+export type ProfileOverview = typeof ProfileOverview.Type
+
+export const PROFILE_PAGE_SIZE = 20
+
+export interface Dashboard {
+  readonly profiles: ProfileCounts
+  readonly overviews: ReadonlyArray<ProfileOverview>
+  readonly hasMoreProfiles: boolean
+  readonly setups: ReadonlyArray<SetupCount>
+  readonly events: ReadonlyArray<AdminEvent>
+}
+
+export type DashboardResult =
+  | { readonly _tag: 'Loaded'; readonly dashboard: Dashboard }
+  | { readonly _tag: 'Unavailable'; readonly reason: string }
+
+/** Matches the API's lazy expiry: nothing walks the tables, the cutoff does. */
+const countProfiles = (at: number) =>
+  Effect.gen(function* () {
+    const db = yield* PgDrizzle.PgDrizzle
+    const dead = new Date(at - PROFILE_TTL_DAYS * DAY_MS).toISOString()
+    const soon = new Date(
+      at - (PROFILE_TTL_DAYS - EXPIRING_SOON_DAYS) * DAY_MS
+    ).toISOString()
+
+    const rows = yield* db
+      .select({
+        total: sql<number>`count(*)::int`,
+        live: sql<number>`(count(*) filter (
+          where ${profiles.lastSeenAt} > ${dead}::timestamptz
+        ))::int`,
+        expiringSoon: sql<number>`(count(*) filter (
+          where ${profiles.lastSeenAt} > ${dead}::timestamptz
+            and ${profiles.lastSeenAt} <= ${soon}::timestamptz
+        ))::int`,
+        expired: sql<number>`(count(*) filter (
+          where ${profiles.lastSeenAt} <= ${dead}::timestamptz
+        ))::int`,
+      })
+      .from(profiles)
+
+    return rows[0] ?? { total: 0, live: 0, expiringSoon: 0, expired: 0 }
+  })
+
+/**
+ * Grouped by the status the agents actually see. `setups.ts` in the API reads
+ * an unsettled row whose `expiresAt` has passed as `expired` and never trusts
+ * the stored column; the CASE below is that rule in SQL, so the console's
+ * numbers cannot drift from the product's.
+ */
+const countSetups = (at: number) =>
+  Effect.gen(function* () {
+    const db = yield* PgDrizzle.PgDrizzle
+    const now = new Date(at).toISOString()
+    const status = sql<SetupStatus>`case
+      when ${setups.status} in ('confirmed', 'declined', 'expired')
+        then ${setups.status}
+      when ${setups.expiresAt} <= ${now}::timestamptz
+        then 'expired'::setup_status
+      else ${setups.status}
+    end`
+
+    /**
+     * By ordinal, not by the expression again: drizzle qualifies column
+     * references inside `groupBy` (`"setups"."status"`) but not in the select
+     * list (`"status"`), and Postgres then reads the two CASEs as different
+     * expressions and rejects the query.
+     */
+    const rows = yield* db
+      .select({ status, count: sql<number>`count(*)::int` })
+      .from(setups)
+      .groupBy(sql`1`)
+
+    const counted = new Map(rows.map((row) => [row.status, row.count]))
+    return SETUP_STATUSES.map(
+      (value): SetupCount => ({ status: value, count: counted.get(value) ?? 0 })
+    )
+  })
+
+/** The audit trail. `payload` is deliberately not selected: it is free-form. */
+const recentEvents = Effect.gen(function* () {
+  const db = yield* PgDrizzle.PgDrizzle
+  const rows = yield* db
+    .select({
+      id: adminEvents.id,
+      kind: adminEvents.kind,
+      profileId: adminEvents.profileId,
+      createdAt: adminEvents.createdAt,
+    })
+    .from(adminEvents)
+    .orderBy(desc(adminEvents.createdAt))
+    .limit(50)
+
+  return rows.map(
+    (row): AdminEvent => ({
+      id: row.id,
+      kind: row.kind,
+      profileId: row.profileId,
+      createdAt: row.createdAt.toISOString(),
+    })
+  )
+})
+
+export const profileOverviews = (
+  at: number,
+  page: number,
+  verifiedEmail?: string | null
+) =>
+  Effect.gen(function* () {
+    const db = yield* PgDrizzle.PgDrizzle
+    const rows = yield* db
+      .select({
+        id: profiles.id,
+        age: profiles.age,
+        gender: profiles.gender,
+        interestedIn: profiles.interestedIn,
+        city: profiles.city,
+        country: profiles.country,
+        radiusKm: profiles.radiusKm,
+        availability: profiles.availability,
+        brief: profiles.brief,
+        createdAt: profiles.createdAt,
+        lastSeenAt: profiles.lastSeenAt,
+      })
+      .from(profiles)
+      .orderBy(desc(profiles.createdAt), desc(profiles.id))
+      .limit(PROFILE_PAGE_SIZE + 1)
+      .offset((page - 1) * PROFILE_PAGE_SIZE)
+    const visibleRows = rows.slice(0, PROFILE_PAGE_SIZE)
+    // Ordinary admins never execute this query or receive these fields in RSC payloads.
+    const privateRows =
+      isSuperAdmin(verifiedEmail) && visibleRows.length > 0
+        ? yield* db
+            .select({
+              id: profiles.id,
+              firstName: profiles.firstName,
+              phone: profiles.phone,
+              email: profiles.email,
+              photoUrl: profiles.photoUrl,
+              standingInstructions: profiles.standingInstructions,
+            })
+            .from(profiles)
+            .where(
+              inArray(
+                profiles.id,
+                visibleRows.map((row) => row.id)
+              )
+            )
+        : []
+    const privateById = new Map(
+      privateRows.map(({ id, ...details }) => [id, details])
+    )
+    return {
+      overviews: visibleRows.map(
+        (row): ProfileOverview => ({
+          ...row,
+          ...(privateById.has(row.id)
+            ? { privateDetails: privateById.get(row.id) }
+            : {}),
+          createdAt: row.createdAt.toISOString(),
+          lastSeenAt: row.lastSeenAt.toISOString(),
+          expired: row.lastSeenAt.getTime() <= at - PROFILE_TTL_DAYS * DAY_MS,
+        })
+      ),
+      hasMoreProfiles: rows.length > PROFILE_PAGE_SIZE,
+    }
+  })
+
+const dashboard = (page: number, verifiedEmail: string | null | undefined) =>
+  Effect.gen(function* () {
+    const at = yield* Clock.currentTimeMillis
+    const [counts, statuses, events, overviewPage] = yield* Effect.all(
+      [
+        countProfiles(at),
+        countSetups(at),
+        recentEvents,
+        profileOverviews(at, page, verifiedEmail),
+      ],
+      { concurrency: 'unbounded' }
+    )
+    return {
+      profiles: counts,
+      setups: statuses,
+      events,
+      ...overviewPage,
+    } satisfies Dashboard
+  })
+
+/**
+ * Runs the whole page's reads, or explains why it could not.
+ *
+ * Nothing here is allowed to throw: `next build` runs with no DATABASE_URL at
+ * all, and a console that 500s the moment Postgres blinks is worse than one
+ * that says so. The layer is built per call rather than memoized so a database
+ * that comes back does not stay broken behind a cached failed layer; the
+ * console is low traffic and the queries are small.
+ *
+ * The connection string is `Config.redacted`, so the password cannot reach
+ * this string.
+ */
+export const loadDashboard = (
+  page: number,
+  verifiedEmail: string | null | undefined
+): Promise<DashboardResult> =>
+  Effect.runPromise(
+    dashboard(page, verifiedEmail).pipe(
+      Effect.map((value) => ({ _tag: 'Loaded', dashboard: value }) as const),
+      Effect.provide(DbLive),
+      Effect.catchAllCause((cause) =>
+        Effect.succeed({
+          _tag: 'Unavailable',
+          reason: Cause.pretty(cause),
+        } as const)
+      )
+    )
+  )
