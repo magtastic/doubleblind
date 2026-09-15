@@ -5,6 +5,7 @@ import {
   profiles,
   setups,
 } from '@doubleblind/db/schema'
+import { isPhotoKey } from '@doubleblind/photos'
 import { SETUP_STATUSES, type SetupStatus } from '@doubleblind/shared'
 import { desc, inArray, sql } from 'drizzle-orm'
 import { Cause, Clock, Effect, Schema } from 'effect'
@@ -220,7 +221,16 @@ export const profileOverviews = (
             )
         : []
     const privateById = new Map(
-      privateRows.map(({ id, ...details }) => [id, details])
+      privateRows.map(({ id, ...details }) => [
+        id,
+        {
+          ...details,
+          photoUrl:
+            details.photoUrl && isPhotoKey(details.photoUrl)
+              ? `/api/photos/${id}`
+              : details.photoUrl,
+        },
+      ])
     )
     return {
       overviews: visibleRows.map(

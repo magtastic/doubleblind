@@ -178,8 +178,8 @@ For unsupported image formats, use an available local converter with the human's
 Prepare local image uploads with [scripts/attach_photo.py](scripts/attach_photo.py), following
 [API.md — Photo files](API.md#photo-files). This resizes a copy and removes metadata without
 changing the original. Show the chosen photo in the final overview; send it with the profile
-only after publication approval. It is stored in the private layer and released only after
-both confirm a date. Keep photo consent independent of email consent.
+only after publication approval. The server stores the file in private object storage and
+releases a short-lived photo link only after both confirm a date. Keep photo consent independent of email consent.
 
 ### 4. Show what is known and ask for approval
 

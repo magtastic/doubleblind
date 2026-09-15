@@ -1,5 +1,6 @@
 import { PgDrizzle } from '@doubleblind/db'
 import { adminEvents, profiles, setups } from '@doubleblind/db/schema'
+import { PhotoStorage } from '@doubleblind/photos'
 import {
   Candidate,
   CandidateCore,
@@ -63,12 +64,9 @@ export const PROFILE_TTL_MS = 90 * 24 * 60 * 60 * 1000
  * Every timestamp comes from `Clock` at call time, never from `now()` in SQL,
  * so a test can move time with `TestClock`.
  *
- * `dependencies` carries `SetupLifecycle` and nothing else: the database and
- * the embedding model are declared as requirements and supplied by whoever
- * builds the layer, so `layers.ts` can point production at Postgres and OpenAI
- * while the module tests point the same code at TEST_DATABASE_URL and a
- * deterministic hash. `SetupLifecycle` needs only the database, so
- * `Doubleblind.Default` still asks the outside world for exactly those two.
+ * The application layer supplies database, embedding, and photo services.
+ * SetupLifecycle supplies the state machine. Tests use a real database and
+ * replace external object storage and embeddings at their network boundaries.
  */
 const now = Effect.map(Clock.currentTimeMillis, (millis) => new Date(millis))
 
@@ -78,6 +76,7 @@ export class Doubleblind extends Effect.Service<Doubleblind>()('Doubleblind', {
     const db = yield* PgDrizzle.PgDrizzle
     const embeddings = yield* EmbeddingModel.EmbeddingModel
     const lifecycle = yield* SetupLifecycle
+    const photos = yield* PhotoStorage
 
     return {
       /**
@@ -90,6 +89,11 @@ export class Doubleblind extends Effect.Service<Doubleblind>()('Doubleblind', {
           const token = yield* generateToken()
           const embedding = yield* embeddings.embed(profile.brief)
 
+          const photoReference = profile.privateLayer.photoUrl?.startsWith(
+            'data:'
+          )
+            ? yield* photos.upload(profile.privateLayer.photoUrl)
+            : (profile.privateLayer.photoUrl ?? null)
           const inserted = yield* db
             .insert(profiles)
             .values({
@@ -105,13 +109,20 @@ export class Doubleblind extends Effect.Service<Doubleblind>()('Doubleblind', {
               embedding,
               firstName: profile.privateLayer.firstName,
               phone: profile.privateLayer.phone,
-              photoUrl: profile.privateLayer.photoUrl ?? null,
+              photoUrl: photoReference,
               email: profile.email ?? null,
               standingInstructions: profile.standingInstructions ?? null,
               createdAt: at,
               lastSeenAt: at,
             })
             .returning({ id: profiles.id })
+            .pipe(
+              Effect.onError(() =>
+                photoReference === null
+                  ? Effect.void
+                  : photos.remove(photoReference)
+              )
+            )
 
           const row = inserted[0]
           if (row === undefined) {
@@ -260,6 +271,12 @@ export class Doubleblind extends Effect.Service<Doubleblind>()('Doubleblind', {
         Effect.gen(function* () {
           const at = yield* now
 
+          const rows = yield* db
+            .select({ photoUrl: profiles.photoUrl })
+            .from(profiles)
+            .where(eq(profiles.id, current.profileId))
+          const photo = rows[0]?.photoUrl
+          if (photo) yield* photos.remove(photo)
           yield* db.delete(profiles).where(eq(profiles.id, current.profileId))
 
           yield* db.insert(adminEvents).values({

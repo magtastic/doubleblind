@@ -42,7 +42,7 @@ describe.skipIf(!hasTestDb)('admin profile overviews', () => {
             firstName: 'Private name',
             phone: '+3548221234',
             email: 'private@example.com',
-            photoUrl: 'data:image/jpeg;base64,private-photo',
+            photoUrl: 'photos/11111111-1111-4111-8111-111111111111.jpeg',
             standingInstructions: 'Private instructions',
             createdAt: new Date(at - index * 1000),
             lastSeenAt: new Date(at - (index === 20 ? 90 * 86400000 : 0)),
@@ -71,7 +71,7 @@ describe.skipIf(!hasTestDb)('admin profile overviews', () => {
       firstName: 'Private name',
       phone: '+3548221234',
       email: 'private@example.com',
-      photoUrl: 'data:image/jpeg;base64,private-photo',
+      photoUrl: `/api/photos/${result.superAdmin.overviews[0]?.id}`,
       standingInstructions: 'Private instructions',
     })
     expect(JSON.stringify(result.superAdmin)).not.toContain('secret-token')
@@ -82,7 +82,7 @@ describe.skipIf(!hasTestDb)('admin profile overviews', () => {
       'Private name',
       '+3548221234',
       'private@example.com',
-      'private-photo',
+      'photos/11111111-1111-4111-8111-111111111111.jpeg',
       'Private instructions',
     ]) {
       expect(serialized).not.toContain(privateValue)

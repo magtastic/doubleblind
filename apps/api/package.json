@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "bun run --hot src/dev.ts",
     "typecheck": "tsc --noEmit",
-    "test": "bun test"
+    "test": "bun test",
+    "build": "bun build src/entry.ts --target=node --format=esm --outfile=dist/entry.js"
   },
   "dependencies": {
     "@doubleblind/db": "workspace:*",
@@ -19,7 +20,8 @@
     "@effect/rpc": "catalog:",
     "@effect/sql": "catalog:",
     "drizzle-orm": "catalog:",
-    "effect": "catalog:"
+    "effect": "catalog:",
+    "@doubleblind/photos": "workspace:*"
   },
   "devDependencies": {
     "@types/bun": "catalog:",

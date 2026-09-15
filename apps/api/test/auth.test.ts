@@ -22,6 +22,7 @@ import {
   type WebHandler,
 } from './support/app-handler.ts'
 import { callTool, initialize } from './support/mcp-client.ts'
+import { TestPhotos } from './support/photos.ts'
 
 /**
  * Authentication end to end: real database, real Caller, real service, both
@@ -47,6 +48,7 @@ if (!hasTestDb) {
 /** The same shape as AppLive, with the test database and no OpenAI key. */
 const AppLayer = Layer.mergeAll(Doubleblind.Default, Caller.Default).pipe(
   Layer.provide(EmbeddingModelDeterministic),
+  Layer.provide(TestPhotos),
   Layer.provideMerge(TestDbLive)
 )
 

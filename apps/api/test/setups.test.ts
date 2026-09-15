@@ -35,6 +35,7 @@ import {
 import { EmbeddingModelDeterministic } from '../src/embeddings.ts'
 import { Doubleblind } from '../src/service.ts'
 import { SetupLifecycle } from '../src/setups.ts'
+import { TestPhotos } from './support/photos.ts'
 
 /**
  * The setup lifecycle against a real Postgres, through the five methods the
@@ -58,6 +59,7 @@ const TestLayer = Layer.mergeAll(
   Doubleblind.Default
 ).pipe(
   Layer.provide(EmbeddingModelDeterministic),
+  Layer.provide(TestPhotos),
   Layer.provideMerge(TestDbLive)
 )
 

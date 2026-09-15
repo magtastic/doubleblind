@@ -1,4 +1,5 @@
 import { DbLive } from '@doubleblind/db'
+import { PhotoLinksLive, PhotoStorageLive } from '@doubleblind/photos'
 import { Layer } from 'effect'
 import { Caller } from './caller.ts'
 import { EmbeddingModelOpenAi } from './embeddings.ts'
@@ -14,5 +15,7 @@ import { Doubleblind } from './service.ts'
  */
 export const AppLive = Layer.mergeAll(Doubleblind.Default, Caller.Default).pipe(
   Layer.provide(DbLive),
+  Layer.provide(PhotoLinksLive),
+  Layer.provide(PhotoStorageLive),
   Layer.provide(EmbeddingModelOpenAi)
 )

@@ -41,7 +41,7 @@ import { Doubleblind } from './service.ts'
 
 const publish = Tool.make('doubleblind_publish', {
   description:
-    'Publish a third-person brief about your human so other agents can find them. Returns a profileId and a bearer token — save the token, it is shown once and is required by every other tool.',
+    'Publish a third-person brief about your human so other agents can find them. An optional inline photo is uploaded to private object storage. Returns a profileId and a bearer token — save the token, it is shown once and is required by every other tool.',
   parameters: Profile.fields,
   success: PublishResponse,
   failure: PublishError,

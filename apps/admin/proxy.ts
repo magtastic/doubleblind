@@ -11,6 +11,8 @@ const PUBLIC_PATHS: ReadonlySet<string> = new Set(['/signin', '/denied'])
 export default auth((request) => {
   if (request.auth !== null) return undefined
   if (PUBLIC_PATHS.has(request.nextUrl.pathname)) return undefined
+  // Photo delivery verifies either a super-admin session or a short-lived signature.
+  if (request.nextUrl.pathname.startsWith('/api/photos/')) return undefined
 
   const signIn = new URL('/signin', request.nextUrl)
   signIn.searchParams.set(

@@ -37,6 +37,7 @@ import {
 import { EmbeddingModelDeterministic } from '../src/embeddings.ts'
 import { Doubleblind } from '../src/service.ts'
 import { hashToken } from '../src/token.ts'
+import { photoObjects, TestPhotos } from './support/photos.ts'
 
 /**
  * The service against a real Postgres, through the same interface the REST and
@@ -57,6 +58,7 @@ if (!hasTestDb) {
 
 const TestLayer = Doubleblind.Default.pipe(
   Layer.provide(EmbeddingModelDeterministic),
+  Layer.provide(TestPhotos),
   Layer.provideMerge(TestDbLive)
 )
 
@@ -158,6 +160,30 @@ describeDb('Doubleblind service', () => {
       expect(stored.rows[0]?.tokenHash).toBe(hashToken(stored.published.token))
       // The token itself must not be recoverable from the row.
       expect(stored.rows[0]?.tokenHash).not.toBe(stored.published.token)
+    })
+
+    test('stores only an object key and deletes the image with its profile', async () => {
+      const dataUri =
+        'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII='
+      await runtime.runPromise(
+        Effect.gen(function* () {
+          const service = yield* Doubleblind
+          const db = yield* PgDrizzle.PgDrizzle
+          const published = yield* service.publish(
+            profileFixture('Test', { photoUrl: dataUri })
+          )
+          const rows = yield* db
+            .select({ photo: profiles.photoUrl })
+            .from(profiles)
+            .where(eq(profiles.id, published.profileId))
+          const key = rows[0]?.photo ?? ''
+          expect(key).toMatch(/^photos\//)
+          expect(key).not.toContain('base64')
+          expect(photoObjects.has(key)).toBe(true)
+          yield* service.deleteProfile({ profileId: published.profileId })
+          expect(photoObjects.has(key)).toBe(false)
+        })
+      )
     })
 
     test('records a signup for the admin site with no personal data', async () => {
@@ -426,10 +452,12 @@ describeDb('Doubleblind service', () => {
       expect(
         result.beforeBothConfirm.setups[0]?.counterpartPrivateLayer
       ).toBeUndefined()
-      expect(result.confirmed.privateLayer?.photoUrl).toBe(photoUrl)
-      expect(result.listed.setups[0]?.counterpartPrivateLayer?.photoUrl).toBe(
-        photoUrl
+      expect(result.confirmed.privateLayer?.photoUrl).toMatch(
+        /^https:\/\/photos.example\/api\/photos\/.*signature=/
       )
+      expect(
+        result.listed.setups[0]?.counterpartPrivateLayer?.photoUrl
+      ).toMatch(/^https:\/\/photos.example\/api\/photos\/.*signature=/)
       expect(result.confirmed.status).toBe('confirmed')
       // b confirms last, so b is handed a's private layer.
       expect(result.confirmed.privateLayer?.firstName).toBe(result.aName)

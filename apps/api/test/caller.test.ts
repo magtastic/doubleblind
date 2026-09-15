@@ -28,6 +28,7 @@ import {
 import { Caller, tokenFromAuthorization } from '../src/caller.ts'
 import { EmbeddingModelDeterministic } from '../src/embeddings.ts'
 import { Doubleblind } from '../src/service.ts'
+import { TestPhotos } from './support/photos.ts'
 
 /**
  * The Caller module against a real Postgres. Everything worth testing here is
@@ -47,6 +48,7 @@ if (!hasTestDb) {
 
 const TestLayer = Layer.mergeAll(Caller.Default, Doubleblind.Default).pipe(
   Layer.provide(EmbeddingModelDeterministic),
+  Layer.provide(TestPhotos),
   Layer.provideMerge(TestDbLive)
 )
 

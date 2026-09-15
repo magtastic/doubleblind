@@ -5,6 +5,7 @@ import {
   type SetupRow,
   setups,
 } from '@doubleblind/db/schema'
+import { PhotoLinks } from '@doubleblind/photos'
 import {
   ConfirmResponse,
   Conflict,
@@ -171,6 +172,7 @@ export class SetupLifecycle extends Effect.Service<SetupLifecycle>()(
     dependencies: [],
     effect: Effect.gen(function* () {
       const db = yield* PgDrizzle.PgDrizzle
+      const photoLinks = yield* PhotoLinks
 
       /**
        * PRODUCT.md: "A weekly cap on interests applies, default to be set in
@@ -317,7 +319,9 @@ export class SetupLifecycle extends Effect.Service<SetupLifecycle>()(
           return new PrivateLayer({
             firstName: row.firstName,
             phone: row.phone,
-            ...(row.photoUrl === null ? {} : { photoUrl: row.photoUrl }),
+            ...(row.photoUrl === null
+              ? {}
+              : { photoUrl: yield* photoLinks.url(row.photoUrl, profileId) }),
           })
         })
 
@@ -774,7 +778,9 @@ export class SetupLifecycle extends Effect.Service<SetupLifecycle>()(
                     phone: row.phone,
                     ...(row.photoUrl === null
                       ? {}
-                      : { photoUrl: row.photoUrl }),
+                      : {
+                          photoUrl: yield* photoLinks.url(row.photoUrl, row.id),
+                        }),
                   })
                 )
               }
