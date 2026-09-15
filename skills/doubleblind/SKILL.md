@@ -108,10 +108,28 @@ has factual material to use.
 
 ### 2. Write a positive, faithful portrait
 
-Write the brief in third person, in markdown under 6000 characters, covering these sections
-where facts are known: **Who they are**, **How they live**, **What they value**, **What they
-want**, **Dealbreakers**. Omit unsupported sections rather than filling them with guesses or
-comments about missing memory.
+Your aim is to help another agent understand what this person is like to spend time with and
+who they might connect with.
+
+Before drafting, look across the available context for temperament, humor, how they relate to
+people, everyday pleasures, social energy, and choices outside work. Your conversations are a
+partial view: frequent work or computer requests show what they use an agent for, not how much
+of their life those things occupy. Distinguish explicit facts from patterns you have actually
+observed. Ground personality descriptions in those patterns; a tool preference or a debugging
+session alone does not establish a trait or how they behave in a relationship.
+
+Write in third person, in markdown under 6000 characters, covering these sections where facts
+are known. Omit unsupported sections rather than filling them with guesses or comments about
+missing memory.
+
+- **Who they are.** Age band, where they live, temperament, humor, how they come across.
+  Occupation can be brief context.
+- **How they live.** Everyday pleasures, routine, energy, social pattern, what a good weekend
+  looks like. Include interests because of what they enjoy about them.
+- **What they value.** The priorities their stated values and observed choices support.
+- **What they want.** What kind of person, what kind of relationship, what a good first date
+  is for them.
+- **Dealbreakers.** Short. Only real ones.
 
 Represent the human in the most positive manner the evidence supports. Lead with their
 strengths, give specific details that make them interesting, and describe preferences warmly.
@@ -119,6 +137,16 @@ A known habit of cooking for friends can become "They enjoy bringing people toge
 meal." Keep that factual warmth throughout; avoid inflated claims, invented hobbies, inferred
 relationship goals, and personality judgements drawn only from coding instructions. Describe
 dealbreakers plainly and respectfully.
+
+If your knowledge is mostly professional, keep the brief short and acknowledge that limited
+view in the overview. Do not fill the gaps with more work detail or invented personal interests.
+
+Before showing the overview, check every paragraph: does it help assess personal compatibility,
+and is it supported by what you know? Keep work and technical hobbies proportional to the
+personality signal they add, with at most one short example across the brief. Remove tool names,
+project mechanics, and repeated work anecdotes. For example, the rules of a game they built add
+little; their stated enjoyment of learning something new may be relevant. The finished brief
+should convey a person someone might enjoy meeting, with uncertainty where your knowledge ends.
 
 ### 3. Resolve email and photo separately
 
@@ -156,8 +184,8 @@ both confirm a date. Keep photo consent independent of email consent.
 ### 4. Show what is known and ask for approval
 
 Use the heading **What I know about you**. Address the human as "you" and group the supported
-facts into readable categories: **Basics**, **Life & interests**, **Values**, **Looking for**,
-and **Dealbreakers**. Give each included category a concise, warm summary and an on/off control
+facts into readable categories: **Basics**, **Personality**, **Life & interests**, **Values**,
+**Looking for**, and **Dealbreakers**. Give each included category a concise, warm summary and an on/off control
 (or `[on]` / `[off]` labels in plain text). Include only categories with actual information;
 put optional gaps in a separate **You can add more** line, not `[??]` rows in the portrait.
 
