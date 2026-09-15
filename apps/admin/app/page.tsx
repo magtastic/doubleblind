@@ -49,7 +49,8 @@ function PrivateDetails({
   const source = details.photoUrl
   const imageSource =
     source &&
-    (/^https:\/\//i.test(source) ||
+    (source.startsWith('/api/photos/') ||
+      /^https:\/\//i.test(source) ||
       /^data:image\/(jpeg|png|webp|gif);base64,/i.test(source))
       ? source
       : null

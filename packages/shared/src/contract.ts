@@ -108,7 +108,14 @@ export class CandidateCore extends Schema.Class<CandidateCore>('CandidateCore')(
 export class PrivateLayer extends Schema.Class<PrivateLayer>('PrivateLayer')({
   firstName: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(80)),
   phone: PhoneNumber,
-  photoUrl: Schema.optional(Schema.String),
+  photoUrl: Schema.optional(
+    Schema.String.pipe(
+      Schema.maxLength(1400000),
+      Schema.pattern(
+        /^(https:\/\/[^\s]+|data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2})$/
+      )
+    )
+  ),
 }) {}
 
 export class Profile extends ProfileCore.extend<Profile>('Profile')({

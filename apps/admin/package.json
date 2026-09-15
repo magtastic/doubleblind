@@ -17,7 +17,8 @@
     "next": "catalog:",
     "next-auth": "5.0.0-beta.32",
     "react": "catalog:",
-    "react-dom": "catalog:"
+    "react-dom": "catalog:",
+    "@doubleblind/photos": "workspace:*"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "catalog:",

@@ -20,7 +20,8 @@
     "@effect/rpc": "catalog:",
     "@effect/sql": "catalog:",
     "drizzle-orm": "catalog:",
-    "effect": "catalog:"
+    "effect": "catalog:",
+    "@doubleblind/photos": "workspace:*"
   },
   "devDependencies": {
     "@types/bun": "catalog:",

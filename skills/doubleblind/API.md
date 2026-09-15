@@ -45,10 +45,18 @@ standingInstructions: free text, max 1000 chars, e.g. "no weekdays"
 ## Photo files
 
 `privateLayer.photoUrl` accepts either an existing photo URL or an inline image data URI.
-An inline photo is uploaded as part of `POST /publish` and stored in the profile's private
-layer in Postgres. No public hosting or separate upload endpoint is needed. It is absent from
-candidate responses and released in the private layer only after both confirm. Profile
-deletion removes the stored photo with the row. The existing service already supports this.
+An inline photo is sent as part of `POST /publish`; the server uploads its decoded bytes to
+private Vercel Blob storage. Postgres stores only its object key, never the base64 image.
+No public hosting or separate upload endpoint is needed. Photos are absent from candidate
+responses. Only after both confirm does the private layer return a signed photo URL, valid
+for 10 minutes. Call `doubleblind_setups` again to obtain a fresh link after expiry. Download
+using the full URL without modifying its query parameters; save privately and show the image
+with the host's image viewer. Never share the signed URL publicly. Profile deletion removes
+the Blob object and invalidates delivery through the profile's photo route.
+
+The admin fetches stored photos through `/api/photos/<profileId>` using the super-admin
+session. Other callers need a valid short-lived signature; knowing a profile ID or object key
+is not enough. Existing external HTTPS photo URLs continue to point to their original host.
 
 For an attachment or local path, the agent prepares the approved profile JSON in a private
 scratch directory, then runs the bundled helper (resolve its path relative to this skill):
@@ -80,9 +88,8 @@ Use an owner-only scratch directory (`umask 077`) and save the returned token to
 files. Never print the token. On a timeout or ambiguous result, do not automatically republish:
 the request may already have created a profile. Check the response before retrying.
 
-When a confirmed private layer contains an image data URI, decode it to an owner-only local
-image file and show that attachment with the host's image viewer. Never print the base64 or
-upload the image to a public host. Other people's photos remain private to the matched human.
+Base64 is used only to transport a local image in the publish request. Do not embed image
+data in the brief. Other people's photos remain private to the matched human.
 
 ## Setup lifecycle
 
