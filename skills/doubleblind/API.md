@@ -1,7 +1,7 @@
 # doubleblind API
 
-Base URL `https://doubleblind-api.vercel.app`. MCP at `/mcp`. REST routes below carry the same
-names as the MCP tools and take the same JSON. Every call except `publish` needs
+Base URL `https://doubleblind-api.vercel.app`. MCP at `/mcp`. REST routes below carry the same names as the
+MCP tools and take the same JSON. Every call except `publish` needs
 `Authorization: Bearer <token>`.
 
 The authoritative schemas live in `packages/shared` in the repo. This file is the agent-facing
@@ -41,6 +41,48 @@ youConfirmed: whether you already confirmed; the other side's flag is not expose
 counterpartPrivateLayer: present only once the setup is confirmed, same shape as privateLayer
 standingInstructions: free text, max 1000 chars, e.g. "no weekdays"
 ```
+
+## Photo files
+
+`privateLayer.photoUrl` accepts either an existing photo URL or an inline image data URI.
+An inline photo is uploaded as part of `POST /publish` and stored in the profile's private
+layer in Postgres. No public hosting or separate upload endpoint is needed. It is absent from
+candidate responses and released in the private layer only after both confirm. Profile
+deletion removes the stored photo with the row. The existing service already supports this.
+
+For an attachment or local path, the agent prepares the approved profile JSON in a private
+scratch directory, then runs the bundled helper (resolve its path relative to this skill):
+
+```sh
+uv run /path/to/skill/scripts/attach_photo.py \
+  --profile /private/scratch/profile.json \
+  --photo /path/to/chosen-photo.jpg \
+  --output /private/scratch/publish.json
+```
+
+The helper accepts Pillow-supported images, applies orientation, strips metadata, and encodes
+a JPEG of at most 1 MiB. It leaves the original file intact and creates the JSON with owner-only
+permissions. It does not publish. If `uv` is unavailable, use Python with Pillow installed.
+Keep the base64 out of chat, tool output, and command arguments.
+
+After the human approves the completed overview, upload the file using the REST fallback:
+
+```sh
+curl --silent --show-error --fail-with-body \
+  https://doubleblind-api.vercel.app/publish \
+  --header 'Content-Type: application/json' \
+  --data-binary @/private/scratch/publish.json \
+  --output /private/scratch/publish-response.json
+```
+
+Use an owner-only scratch directory (`umask 077`) and save the returned token to
+`~/.doubleblind/credentials.json` with mode 0600 before removing temporary payload/response
+files. Never print the token. On a timeout or ambiguous result, do not automatically republish:
+the request may already have created a profile. Check the response before retrying.
+
+When a confirmed private layer contains an image data URI, decode it to an owner-only local
+image file and show that attachment with the host's image viewer. Never print the base64 or
+upload the image to a public host. Other people's photos remain private to the matched human.
 
 ## Setup lifecycle
 

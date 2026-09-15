@@ -6,8 +6,9 @@ import {
   setups,
 } from '@doubleblind/db/schema'
 import { SETUP_STATUSES, type SetupStatus } from '@doubleblind/shared'
-import { desc, sql } from 'drizzle-orm'
-import { Cause, Clock, Effect } from 'effect'
+import { desc, inArray, sql } from 'drizzle-orm'
+import { Cause, Clock, Effect, Schema } from 'effect'
+import { isSuperAdmin } from './access.ts'
 
 /**
  * Everything the console reads out of Postgres.
@@ -16,9 +17,9 @@ import { Cause, Clock, Effect } from 'effect'
  * it builds the layer, runs the queries and hands back plain data, so the
  * components stay dumb and never import Effect.
  *
- * PRODUCT.md is a privacy product and this is an operations console, so no
- * query here selects a brief, a private-layer field, an email or a token hash.
- * Profile ids only.
+ * Profile overviews select the published brief and matching fields explicitly.
+ * Private details are queried only for the super admin, identified by a verified
+ * session email. Token hashes are never selected.
  */
 
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -46,8 +47,37 @@ export interface AdminEvent {
   readonly createdAt: string
 }
 
+export const ProfileOverview = Schema.Struct({
+  id: Schema.String,
+  age: Schema.Number,
+  gender: Schema.String,
+  interestedIn: Schema.Array(Schema.String),
+  city: Schema.String,
+  country: Schema.String,
+  radiusKm: Schema.Number,
+  availability: Schema.String,
+  brief: Schema.String,
+  createdAt: Schema.String,
+  lastSeenAt: Schema.String,
+  expired: Schema.Boolean,
+  privateDetails: Schema.optional(
+    Schema.Struct({
+      firstName: Schema.String,
+      phone: Schema.String,
+      email: Schema.NullOr(Schema.String),
+      photoUrl: Schema.NullOr(Schema.String),
+      standingInstructions: Schema.NullOr(Schema.String),
+    })
+  ),
+})
+export type ProfileOverview = typeof ProfileOverview.Type
+
+export const PROFILE_PAGE_SIZE = 20
+
 export interface Dashboard {
   readonly profiles: ProfileCounts
+  readonly overviews: ReadonlyArray<ProfileOverview>
+  readonly hasMoreProfiles: boolean
   readonly setups: ReadonlyArray<SetupCount>
   readonly events: ReadonlyArray<AdminEvent>
 }
@@ -143,14 +173,90 @@ const recentEvents = Effect.gen(function* () {
   )
 })
 
-const dashboard = Effect.gen(function* () {
-  const at = yield* Clock.currentTimeMillis
-  const [counts, statuses, events] = yield* Effect.all(
-    [countProfiles(at), countSetups(at), recentEvents],
-    { concurrency: 'unbounded' }
-  )
-  return { profiles: counts, setups: statuses, events } satisfies Dashboard
-})
+export const profileOverviews = (
+  at: number,
+  page: number,
+  verifiedEmail?: string | null
+) =>
+  Effect.gen(function* () {
+    const db = yield* PgDrizzle.PgDrizzle
+    const rows = yield* db
+      .select({
+        id: profiles.id,
+        age: profiles.age,
+        gender: profiles.gender,
+        interestedIn: profiles.interestedIn,
+        city: profiles.city,
+        country: profiles.country,
+        radiusKm: profiles.radiusKm,
+        availability: profiles.availability,
+        brief: profiles.brief,
+        createdAt: profiles.createdAt,
+        lastSeenAt: profiles.lastSeenAt,
+      })
+      .from(profiles)
+      .orderBy(desc(profiles.createdAt), desc(profiles.id))
+      .limit(PROFILE_PAGE_SIZE + 1)
+      .offset((page - 1) * PROFILE_PAGE_SIZE)
+    const visibleRows = rows.slice(0, PROFILE_PAGE_SIZE)
+    // Ordinary admins never execute this query or receive these fields in RSC payloads.
+    const privateRows =
+      isSuperAdmin(verifiedEmail) && visibleRows.length > 0
+        ? yield* db
+            .select({
+              id: profiles.id,
+              firstName: profiles.firstName,
+              phone: profiles.phone,
+              email: profiles.email,
+              photoUrl: profiles.photoUrl,
+              standingInstructions: profiles.standingInstructions,
+            })
+            .from(profiles)
+            .where(
+              inArray(
+                profiles.id,
+                visibleRows.map((row) => row.id)
+              )
+            )
+        : []
+    const privateById = new Map(
+      privateRows.map(({ id, ...details }) => [id, details])
+    )
+    return {
+      overviews: visibleRows.map(
+        (row): ProfileOverview => ({
+          ...row,
+          ...(privateById.has(row.id)
+            ? { privateDetails: privateById.get(row.id) }
+            : {}),
+          createdAt: row.createdAt.toISOString(),
+          lastSeenAt: row.lastSeenAt.toISOString(),
+          expired: row.lastSeenAt.getTime() <= at - PROFILE_TTL_DAYS * DAY_MS,
+        })
+      ),
+      hasMoreProfiles: rows.length > PROFILE_PAGE_SIZE,
+    }
+  })
+
+const dashboard = (page: number, verifiedEmail: string | null | undefined) =>
+  Effect.gen(function* () {
+    const at = yield* Clock.currentTimeMillis
+    const [counts, statuses, events, overviewPage] = yield* Effect.all(
+      [
+        countProfiles(at),
+        countSetups(at),
+        recentEvents,
+        profileOverviews(at, page, verifiedEmail),
+      ],
+      { concurrency: 'unbounded' }
+    )
+    return {
+      profiles: counts,
+      setups: statuses,
+      events,
+      ...overviewPage,
+    } satisfies Dashboard
+  })
 
 /**
  * Runs the whole page's reads, or explains why it could not.
@@ -164,9 +270,12 @@ const dashboard = Effect.gen(function* () {
  * The connection string is `Config.redacted`, so the password cannot reach
  * this string.
  */
-export const loadDashboard = (): Promise<DashboardResult> =>
+export const loadDashboard = (
+  page: number,
+  verifiedEmail: string | null | undefined
+): Promise<DashboardResult> =>
   Effect.runPromise(
-    dashboard.pipe(
+    dashboard(page, verifiedEmail).pipe(
       Effect.map((value) => ({ _tag: 'Loaded', dashboard: value }) as const),
       Effect.provide(DbLive),
       Effect.catchAllCause((cause) =>
