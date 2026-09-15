@@ -1,0 +1,197 @@
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Never two production pipelines at once, and never cancel one half way: a
+# cancelled run could leave the database migrated and the function not.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  BUN_VERSION: 1.3.14
+  VERCEL_CLI_VERSION: 59.16.0
+  # Team smitten-server. Project ids are identifiers, not secrets; the only
+  # secret in this file is VERCEL_TOKEN.
+  VERCEL_ORG_ID: team_gDnXmbne0PuTiJ95im5rbTr6
+  VERCEL_API_PROJECT_ID: prj_KnEDfyETA8ldC7VZvB2YjDR1jnhk
+  VERCEL_ADMIN_PROJECT_ID: prj_ImBVG3ODEhUEcAHcEMbQlaBMZTgi
+
+jobs:
+  # 1. The same checks a pull request gets. Everything below depends on it, so
+  #    a red tree deploys nothing.
+  verify:
+    uses: ./.github/workflows/verify.yml
+
+  # 2. Migrate before the API deploys, so the function never runs against a
+  #    schema older than its code. drizzle-kit reads ./drizzle.config.ts, which
+  #    reads DATABASE_URL. The first migration opens with
+  #    `CREATE EXTENSION IF NOT EXISTS vector`, so the production role needs to
+  #    be allowed to create extensions.
+  migrate:
+    name: migrate database
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - run: bun install --frozen-lockfile
+
+      - name: bunx drizzle-kit migrate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: bunx drizzle-kit migrate
+
+  # 3. The two deploys run in parallel, both behind the migration.
+  deploy-api:
+    name: deploy doubleblind-api
+    needs: migrate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - run: bun install --frozen-lockfile
+
+      - uses: ./.github/actions/vercel-deploy
+        with:
+          project-name: doubleblind-api
+          project-id: ${{ env.VERCEL_API_PROJECT_ID }}
+          org-id: ${{ env.VERCEL_ORG_ID }}
+          token: ${{ secrets.VERCEL_TOKEN }}
+          cli-version: ${{ env.VERCEL_CLI_VERSION }}
+
+  deploy-admin:
+    name: deploy doubleblind-admin
+    needs: migrate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - run: bun install --frozen-lockfile
+
+      - uses: ./.github/actions/vercel-deploy
+        with:
+          project-name: doubleblind-admin
+          project-id: ${{ env.VERCEL_ADMIN_PROJECT_ID }}
+          org-id: ${{ env.VERCEL_ORG_ID }}
+          token: ${{ secrets.VERCEL_TOKEN }}
+          cli-version: ${{ env.VERCEL_CLI_VERSION }}
+
+  # 4. Publish the agent-facing skill. This job runs on every merge to main but
+  #    only does anything when the version was bumped, so both the npm publish
+  #    and the GitHub release check first and skip cleanly when the version is
+  #    already out.
+  #
+  #    skills/doubleblind/package.json and .claude-plugin/plugin.json describe
+  #    the same skill through two different front doors and must carry the same
+  #    version. The job fails if they drift.
+  release-skill:
+    name: release skill
+    needs: [deploy-api, deploy-admin]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - name: Read and cross-check versions
+        id: meta
+        run: |
+          set -euo pipefail
+          name=$(node -p "require('./skills/doubleblind/package.json').name")
+          version=$(node -p "require('./skills/doubleblind/package.json').version")
+          plugin=$(node -p "require('./.claude-plugin/plugin.json').version")
+          if [ "$version" != "$plugin" ]; then
+            echo "::error file=.claude-plugin/plugin.json::skill package is $version but plugin.json is $plugin; bump both together"
+            exit 1
+          fi
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+
+      - name: Is this version already on npm?
+        id: registry
+        run: |
+          set -uo pipefail
+          # `npm view pkg@version` exits 1 for both an unpublished package and a
+          # missing version, but check the output too rather than trust that.
+          found=$(npm view "${{ steps.meta.outputs.name }}@${{ steps.meta.outputs.version }}" version 2>/dev/null || true)
+          if [ -n "$found" ]; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish to npm
+        if: steps.registry.outputs.published == 'false'
+        working-directory: skills/doubleblind
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public
+
+      - name: Is the release tag already cut?
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -uo pipefail
+          if gh release view "${{ steps.meta.outputs.tag }}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Cut the GitHub release
+        if: steps.release.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create "${{ steps.meta.outputs.tag }}" \
+            --target "$GITHUB_SHA" \
+            --title "${{ steps.meta.outputs.tag }}" \
+            --notes "skill \`${{ steps.meta.outputs.name }}@${{ steps.meta.outputs.version }}\` on npm."
+
+      - name: Summary
+        run: |
+          {
+            echo "### skill ${{ steps.meta.outputs.name }}@${{ steps.meta.outputs.version }}"
+            echo
+            if [ "${{ steps.registry.outputs.published }}" = "true" ]; then
+              echo "- npm: already published, skipped"
+            else
+              echo "- npm: published"
+            fi
+            if [ "${{ steps.release.outputs.exists }}" = "true" ]; then
+              echo "- release ${{ steps.meta.outputs.tag }}: already exists, skipped"
+            else
+              echo "- release ${{ steps.meta.outputs.tag }}: created"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

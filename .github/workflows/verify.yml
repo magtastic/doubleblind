@@ -1,0 +1,49 @@
+name: verify
+
+# Reusable: the single definition of "is this tree good?". Called by pr.yml on
+# every pull request and by deploy.yml as the gate in front of migrate/deploy.
+on:
+  workflow_call:
+
+jobs:
+  verify:
+    name: typecheck, lint, test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    # Mirrors docker-compose.yml: same image, same credentials, same host port,
+    # because package.json's `test:db` hardcodes localhost:5434. pgvector is not
+    # optional -- migration 0000 opens with CREATE EXTENSION vector.
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_DB: doubleblind
+          POSTGRES_USER: doubleblind
+          POSTGRES_PASSWORD: doubleblind
+        ports:
+          - 5434:5432
+        options: >-
+          --health-cmd "pg_isready -U doubleblind -d doubleblind"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - run: bun install --frozen-lockfile
+
+      # typecheck + biome + `bun test`. The database suites skip loudly here.
+      - name: bun run verify
+        run: bun run verify
+
+      # Same suites again with TEST_DATABASE_URL set, so the 64 database tests
+      # actually run. No migration step: packages/db/src/testing.ts exports an
+      # idempotent `migrate` and every database suite calls it in beforeAll.
+      - name: bun run test:db
+        run: bun run test:db

@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "bun run --hot src/dev.ts",
+    "build": "bun build src/entry.ts --target=node --format=esm --outfile=dist/entry.js",
     "typecheck": "tsc --noEmit",
-    "test": "bun test",
-    "build": "bun build src/entry.ts --target=node --format=esm --outfile=dist/entry.js"
+    "test": "bun test"
   },
   "dependencies": {
     "@doubleblind/db": "workspace:*",

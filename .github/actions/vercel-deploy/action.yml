@@ -1,0 +1,70 @@
+name: vercel-deploy
+description: >-
+  Build and deploy one Vercel project to production with the prebuilt flow.
+  Runs from the repository root; the project's own rootDirectory setting points
+  the build at the right subdirectory.
+
+inputs:
+  project-name:
+    description: Human-readable project name, used in the job summary.
+    required: true
+  project-id:
+    description: Vercel project id (prj_...).
+    required: true
+  org-id:
+    description: Vercel team id (team_...).
+    required: true
+  token:
+    description: Vercel access token.
+    required: true
+  cli-version:
+    description: Exact vercel CLI version to install.
+    required: true
+
+outputs:
+  url:
+    description: The production deployment URL.
+    value: ${{ steps.deploy.outputs.url }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install Vercel CLI
+      shell: bash
+      run: npm install --global vercel@${{ inputs.cli-version }}
+
+    # VERCEL_ORG_ID + VERCEL_PROJECT_ID are how pull/build/deploy know which of
+    # the two projects they are acting on. Neither project is linked to the
+    # GitHub repo on Vercel's side: Actions owns deployment so tests gate it.
+    - name: Pull production settings
+      shell: bash
+      env:
+        VERCEL_ORG_ID: ${{ inputs.org-id }}
+        VERCEL_PROJECT_ID: ${{ inputs.project-id }}
+        VERCEL_TOKEN: ${{ inputs.token }}
+      run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+
+    - name: Build
+      shell: bash
+      env:
+        VERCEL_ORG_ID: ${{ inputs.org-id }}
+        VERCEL_PROJECT_ID: ${{ inputs.project-id }}
+        VERCEL_TOKEN: ${{ inputs.token }}
+      run: vercel build --prod --token="$VERCEL_TOKEN"
+
+    - name: Deploy
+      id: deploy
+      shell: bash
+      env:
+        VERCEL_ORG_ID: ${{ inputs.org-id }}
+        VERCEL_PROJECT_ID: ${{ inputs.project-id }}
+        VERCEL_TOKEN: ${{ inputs.token }}
+      run: |
+        set -euo pipefail
+        url=$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN")
+        echo "url=$url" >> "$GITHUB_OUTPUT"
+        {
+          echo "### ${{ inputs.project-name }}"
+          echo
+          echo "Deployed to $url"
+        } >> "$GITHUB_STEP_SUMMARY"
