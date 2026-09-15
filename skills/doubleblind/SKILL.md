@@ -60,8 +60,10 @@ Examples illustrate the reasoning, not facts to copy into another person's profi
   question or turning one passing mention into a defining personality trait.
 
 Confirmation promotes a suggestion to a fact; a correction replaces it. Keep unanswered
-suggestions out of the brief and publish payload. Never infer gender, who someone wants to
-date, health, finances, or third-party details from names, photos, or other indirect clues.
+factual suggestions out of the brief and publish payload. Conversational impressions follow
+step 2 and are reviewed in the overview, without a separate question for every trait. Never
+infer gender, who someone wants to date, health, finances, or third-party details from names,
+photos, or other indirect clues.
 Use the human's explicit statements for those. An empty calendar does not establish dating
 availability, and a country code is not a way to invent a phone number.
 
@@ -111,21 +113,29 @@ has factual material to use.
 Your aim is to help another agent understand what this person is like to spend time with and
 who they might connect with.
 
-Before drafting, look across the available context for temperament, humor, how they relate to
-people, everyday pleasures, social energy, and choices outside work. Your conversations are a
-partial view: frequent work or computer requests show what they use an agent for, not how much
-of their life those things occupy. Distinguish explicit facts from patterns you have actually
-observed. Ground personality descriptions in those patterns; a tool preference or a debugging
-session alone does not establish a trait or how they behave in a relationship.
+Before drafting, read both what they say and how they say it. Tone, humor, enthusiasm,
+curiosity, how they respond to suggestions, and recurring choices are evidence for personality
+and values, even in conversations about work. Use that evidence actively: a biography is not
+required to notice warmth, playfulness, openness, or a positive outlook. Their own descriptions
+of themselves count too, and their corrections take precedence over your impressions.
+
+Distinguish stated facts from your read of them. Ground impressions in actual conversational
+patterns and phrase them at the scope the evidence supports: "They come across as cheerful
+and open to new ideas" can be supported by their conversational manner. One polite reply,
+terse command, or tool preference carries little weight; repeated patterns carry more. Work
+requests show what they use an agent for, not how much of their life work occupies. Tone alone
+does not establish hobbies, weekend routines, relationship behavior, or sensitive attributes.
 
 Write in third person, in markdown under 6000 characters, covering these sections where facts
-are known. Omit unsupported sections rather than filling them with guesses or comments about
-missing memory.
+or grounded impressions are available. Omit unsupported sections rather than filling them
+with guesses or comments about missing memory.
 
 - **Who they are.** Age band, where they live, temperament, humor, how they come across.
   Occupation can be brief context.
 - **How they live.** Everyday pleasures, routine, energy, social pattern, what a good weekend
-  looks like. Include interests because of what they enjoy about them.
+  looks like. Use casual mentions and expressed enthusiasm as well as explicit biographical
+  facts; distinguish wanting to try something from doing it regularly. Include interests
+  because of what they enjoy about them.
 - **What they value.** The priorities their stated values and observed choices support.
 - **What they want.** What kind of person, what kind of relationship, what a good first date
   is for them.
@@ -134,12 +144,19 @@ missing memory.
 Represent the human in the most positive manner the evidence supports. Lead with their
 strengths, give specific details that make them interesting, and describe preferences warmly.
 A known habit of cooking for friends can become "They enjoy bringing people together over a
-meal." Keep that factual warmth throughout; avoid inflated claims, invented hobbies, inferred
-relationship goals, and personality judgements drawn only from coding instructions. Describe
-dealbreakers plainly and respectfully.
+meal." A stated dislike of meanness can support "Kindness matters to them." Keep values as
+specific as the evidence allows. Avoid inflated claims, invented hobbies, and inferred
+relationship goals. Describe dealbreakers plainly and respectfully.
 
-If your knowledge is mostly professional, keep the brief short and acknowledge that limited
-view in the overview. Do not fill the gaps with more work detail or invented personal interests.
+Let the prose sound like the person while staying in third person: reflect their warmth,
+pace, directness, playfulness, or understated humor in the wording. Aim for a portrait they
+recognize in both substance and voice. Match the tone actually observed rather than giving
+everyone the same cheerful copy; use quotation marks only for their actual words.
+
+If your knowledge is mostly professional, use the personality signal in those conversations
+and keep factual life details proportional to what is known. Mention any material limitation
+briefly in the overview; keep the brief focused on the person. Offer optional additions
+neutrally, without judging the profile as thin or pressuring them to supply a biography.
 
 Before showing the overview, check every paragraph: does it help assess personal compatibility,
 and is it supported by what you know? Keep work and technical hobbies proportional to the
@@ -186,7 +203,10 @@ releases a short-lived photo link only after both confirm a date. Keep photo con
 Use the heading **What I know about you**. Address the human as "you" and group the supported
 facts into readable categories: **Basics**, **Personality**, **Life & interests**, **Values**,
 **Looking for**, and **Dealbreakers**. Give each included category a concise, warm summary and an on/off control
-(or `[on]` / `[off]` labels in plain text). Include only categories with actual information;
+(or `[on]` / `[off]` labels in plain text). Include grounded impressions alongside stated
+facts, making their basis clear where relevant: "You come across as playful and curious in
+our conversations." Let them correct or remove these in this review; approval of the overview
+covers the visible impressions too. Include only categories with supported content;
 put optional gaps in a separate **You can add more** line, not `[??]` rows in the portrait.
 
 Then show **Dating preferences** (interest, location, availability, proposed date radius) and
