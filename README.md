@@ -59,16 +59,20 @@ skill release.
 
 ### Secrets
 
-Three repository secrets, in Settings → Secrets and variables → Actions. Everything else the
+Two repository secrets, in Settings → Secrets and variables → Actions. Everything else the
 running services need is a Vercel project environment variable, not an Actions secret.
 
 | Secret | Where it comes from |
 |---|---|
 | `VERCEL_TOKEN` | vercel.com → Account Settings → Tokens, scoped to the `smitten-server` team |
 | `DATABASE_URL` | 1Password, item `doubleblind/DATABASE_URL`. Same value as `bun run get:env` writes. The role must be allowed `CREATE EXTENSION vector` |
-| `NPM_TOKEN` | npmjs.com → Access Tokens → Granular, write access to the `doubleblind` package |
 
 ### Releasing the skill
+
+npm uses trusted publishing through GitHub Actions, without an npm token. The package's
+trusted publisher must name owner `magtastic`, repository `doubleblind`, and workflow
+`deploy.yml`, with no environment name and **Allow npm publish** enabled. The release job
+requests `id-token: write` and uses npm 11.12.1 to authenticate through OIDC.
 
 `npx skills add magtastic/doubleblind` installs from GitHub, not from npm: the `skills` CLI
 resolves git and URL sources only, and keys the install directory off the `name` in SKILL.md
