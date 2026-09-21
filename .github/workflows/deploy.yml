@@ -113,13 +113,17 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: write
+      id-token: write
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
-          registry-url: https://registry.npmjs.org
+          node-version: 24
+
+      # Trusted publishing requires npm >= 11.5.1.
+      - name: Install npm with trusted publishing support
+        run: npm install --global npm@11.12.1
 
       - name: Read and cross-check versions
         id: meta
@@ -152,8 +156,6 @@ jobs:
       - name: Publish to npm
         if: steps.registry.outputs.published == 'false'
         working-directory: skills/doubleblind
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish --access public
 
       - name: Is the release tag already cut?
