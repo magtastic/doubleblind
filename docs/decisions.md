@@ -114,3 +114,11 @@ Actions secret replaced. Still open:
 - Publish the npm package `swipeless`, configure its trusted publisher (repo `swipeless`,
   workflow `deploy.yml`), and deprecate `doubleblind` with a pointer to it.
 - Pick and buy a domain.
+
+## 2026-10-01: Dedicated OpenAI key
+
+The shared `Vercel Functions Environment` key was revoked, which broke every publish with a 500
+at the embedding step. swipeless now has its own key, stored in the `swipeless` vault and set on
+the `swipeless-api` project for production and development. Embeddings stay on OpenAI
+`text-embedding-3-small`. Rejected: switching embedding providers, and dropping embeddings for
+filter-only matching.
