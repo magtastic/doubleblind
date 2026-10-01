@@ -18,13 +18,13 @@ jobs:
       postgres:
         image: pgvector/pgvector:pg17
         env:
-          POSTGRES_DB: doubleblind
-          POSTGRES_USER: doubleblind
-          POSTGRES_PASSWORD: doubleblind
+          POSTGRES_DB: swipeless
+          POSTGRES_USER: swipeless
+          POSTGRES_PASSWORD: swipeless
         ports:
           - 5434:5432
         options: >-
-          --health-cmd "pg_isready -U doubleblind -d doubleblind"
+          --health-cmd "pg_isready -U swipeless -d swipeless"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10

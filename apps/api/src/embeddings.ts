@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto'
-import { EMBEDDING_DIMENSIONS } from '@doubleblind/db/schema'
 import { EmbeddingModel } from '@effect/ai'
 import { OpenAiClient, OpenAiEmbeddingModel } from '@effect/ai-openai'
 import { FetchHttpClient } from '@effect/platform'
+import { EMBEDDING_DIMENSIONS } from '@swipeless/db/schema'
 import { Config, Effect, Layer } from 'effect'
 
 /**

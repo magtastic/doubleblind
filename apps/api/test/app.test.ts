@@ -4,7 +4,7 @@ import {
   NotFound,
   PublishResponse,
   RateLimited,
-} from '@doubleblind/shared'
+} from '@swipeless/shared'
 import { Effect } from 'effect'
 import {
   disposeHandlers,
@@ -16,7 +16,7 @@ import {
   FAKE_PROFILE_ID,
   FAKE_SETUP_ID,
   fakeApp,
-} from './support/fake-doubleblind.ts'
+} from './support/fake-swipeless.ts'
 
 /**
  * Transport tests. The service is faked, but routing, schema validation, the

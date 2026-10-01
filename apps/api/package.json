@@ -1,5 +1,5 @@
 {
-  "name": "@doubleblind/api",
+  "name": "@swipeless/api",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -10,8 +10,8 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@doubleblind/db": "workspace:*",
-    "@doubleblind/shared": "workspace:*",
+    "@swipeless/db": "workspace:*",
+    "@swipeless/shared": "workspace:*",
     "@effect/ai": "catalog:",
     "@effect/ai-openai": "catalog:",
     "@effect/experimental": "catalog:",
@@ -21,7 +21,7 @@
     "@effect/sql": "catalog:",
     "drizzle-orm": "catalog:",
     "effect": "catalog:",
-    "@doubleblind/photos": "workspace:*"
+    "@swipeless/photos": "workspace:*"
   },
   "devDependencies": {
     "@types/bun": "catalog:",

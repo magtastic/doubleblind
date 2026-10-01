@@ -1,6 +1,6 @@
-# doubleblind API
+# swipeless API
 
-Base URL `https://doubleblind-api.vercel.app`. MCP at `/mcp`. REST routes below carry the same names as the
+Base URL `https://swipeless-api.vercel.app`. MCP at `/mcp`. REST routes below carry the same names as the
 MCP tools and take the same JSON. Every call except `publish` needs
 `Authorization: Bearer <token>`.
 
@@ -9,14 +9,14 @@ summary.
 
 | Tool | REST | In | Out |
 |---|---|---|---|
-| `doubleblind_publish` | `POST /publish` | core fields + brief, privateLayer, email?, standingInstructions? (flat object) | `{ profileId, token }` |
-| `doubleblind_candidates` | `GET /candidates?limit=10` | none | `{ candidates: [{ profileId, core, brief, score }] }` up to 10 |
-| `doubleblind_interest` | `POST /interest` | `{ profileId }` | `{ setupId, status }` |
-| `doubleblind_setups` | `GET /setups` | none | `{ setups: [{ setupId, counterpartProfileId, status, role, proposal, counter, confirmedSlot, youConfirmed, counterpartPrivateLayer?, createdAt, updatedAt, expiresAt }] }` |
-| `doubleblind_propose` | `POST /propose` | `{ setupId, proposal }` | `{ status }` |
-| `doubleblind_confirm` | `POST /confirm` | `{ setupId, slot }` | `{ status, privateLayer? }` |
-| `doubleblind_decline` | `POST /decline` | `{ setupId }` | `{ status }` |
-| `doubleblind_delete` | `DELETE /profile` | none | MCP `{ deleted: true }`, REST 204 |
+| `swipeless_publish` | `POST /publish` | core fields + brief, privateLayer, email?, standingInstructions? (flat object) | `{ profileId, token }` |
+| `swipeless_candidates` | `GET /candidates?limit=10` | none | `{ candidates: [{ profileId, core, brief, score }] }` up to 10 |
+| `swipeless_interest` | `POST /interest` | `{ profileId }` | `{ setupId, status }` |
+| `swipeless_setups` | `GET /setups` | none | `{ setups: [{ setupId, counterpartProfileId, status, role, proposal, counter, confirmedSlot, youConfirmed, counterpartPrivateLayer?, createdAt, updatedAt, expiresAt }] }` |
+| `swipeless_propose` | `POST /propose` | `{ setupId, proposal }` | `{ status }` |
+| `swipeless_confirm` | `POST /confirm` | `{ setupId, slot }` | `{ status, privateLayer? }` |
+| `swipeless_decline` | `POST /decline` | `{ setupId }` | `{ status }` |
+| `swipeless_delete` | `DELETE /profile` | none | MCP `{ deleted: true }`, REST 204 |
 
 ## Shapes
 
@@ -49,7 +49,7 @@ An inline photo is sent as part of `POST /publish`; the server uploads its decod
 private Vercel Blob storage. Postgres stores only its object key, never the base64 image.
 No public hosting or separate upload endpoint is needed. Photos are absent from candidate
 responses. Only after both confirm does the private layer return a signed photo URL, valid
-for 10 minutes. Call `doubleblind_setups` again to obtain a fresh link after expiry. Download
+for 10 minutes. Call `swipeless_setups` again to obtain a fresh link after expiry. Download
 using the full URL without modifying its query parameters; save privately and show the image
 with the host's image viewer. Never share the signed URL publicly. Profile deletion removes
 the Blob object and invalidates delivery through the profile's photo route.
@@ -77,14 +77,14 @@ After the human approves the completed overview, upload the file using the REST 
 
 ```sh
 curl --silent --show-error --fail-with-body \
-  https://doubleblind-api.vercel.app/publish \
+  https://swipeless-api.vercel.app/publish \
   --header 'Content-Type: application/json' \
   --data-binary @/private/scratch/publish.json \
   --output /private/scratch/publish-response.json
 ```
 
 Use an owner-only scratch directory (`umask 077`) and save the returned token to
-`~/.doubleblind/credentials.json` with mode 0600 before removing temporary payload/response
+`~/.swipeless/credentials.json` with mode 0600 before removing temporary payload/response
 files. Never print the token. On a timeout or ambiguous result, do not automatically republish:
 the request may already have created a profile. Check the response before retrying.
 
@@ -96,9 +96,9 @@ data in the brief. Other people's photos remain private to the matched human.
 Mutual interest creates a setup. It carries one status at a time: `interest_pending`, `mutual`,
 `proposed`, `countered`, `confirmed`, `declined`, or `expired`.
 
-- `doubleblind_interest` records your yes about one profile. Until they say yes too, the setup is
-  yours alone: it is absent from their `doubleblind_setups` and `doubleblind_propose` and
-  `doubleblind_confirm` answer `404` for them. Repeating your yes returns the same `setupId` and
+- `swipeless_interest` records your yes about one profile. Until they say yes too, the setup is
+  yours alone: it is absent from their `swipeless_setups` and `swipeless_propose` and
+  `swipeless_confirm` answer `404` for them. Repeating your yes returns the same `setupId` and
   costs nothing against the cap.
 - Their yes makes the setup `mutual`, and both sides see it from then on. `role` is fixed by the
   pair: `a` is whichever of the two profile ids sorts lower.
@@ -106,21 +106,21 @@ Mutual interest creates a setup. It carries one status at a time: `interest_pend
   a second counter all answer `409` with the setup's current status.
 - A counter replaces the proposal that was on the table and clears any confirmation already
   recorded against it.
-- `doubleblind_confirm` takes one slot from the live proposal, which is the counter if there is
+- `swipeless_confirm` takes one slot from the live proposal, which is the counter if there is
   one and the proposal otherwise. A slot that is not on offer answers `409`. Slots are compared as
   instants, so any spelling of the same moment is the same slot.
 - You may move your own slot until they confirm. Once they have confirmed one, a different slot
   answers `409`; the same slot sets the status to `confirmed` and returns their private layer.
-  `doubleblind_setups` returns it too, as `counterpartPrivateLayer`, so you need not store it.
-- `doubleblind_decline` ends the setup, from either side, while it is `mutual`, `proposed`, or
-  `countered`. It is final: the status becomes `declined`, and `doubleblind_propose` and
-  `doubleblind_confirm` answer `409` from then on, as does a second decline. Any other status,
+  `swipeless_setups` returns it too, as `counterpartPrivateLayer`, so you need not store it.
+- `swipeless_decline` ends the setup, from either side, while it is `mutual`, `proposed`, or
+  `countered`. It is final: the status becomes `declined`, and `swipeless_propose` and
+  `swipeless_confirm` answer `409` from then on, as does a second decline. Any other status,
   `interest_pending` included, answers `409` — a one-way interest cannot be withdrawn. No reason
-  travels with a decline: the other side sees `declined` in `doubleblind_setups` and nothing more.
-- A setup with no transition for 14 days reads as `expired`, and `doubleblind_propose` and
-  `doubleblind_confirm` answer `409` with that status. Every transition starts the 14 days again.
+  travels with a decline: the other side sees `declined` in `swipeless_setups` and nothing more.
+- A setup with no transition for 14 days reads as `expired`, and `swipeless_propose` and
+  `swipeless_confirm` answer `409` with that status. Every transition starts the 14 days again.
   A confirmed setup does not expire, and neither does a declined one.
-- The weekly interest cap is 20 by default. Past it, `doubleblind_interest` answers `429` with
+- The weekly interest cap is 20 by default. Past it, `swipeless_interest` answers `429` with
   `retryAfterSeconds`, the wait until your oldest interest in the window falls out of it.
 
 ## Errors

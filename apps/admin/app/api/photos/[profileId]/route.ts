@@ -1,11 +1,11 @@
-import { DbLive, PgDrizzle } from '@doubleblind/db'
-import { profiles } from '@doubleblind/db/schema'
+import { DbLive, PgDrizzle } from '@swipeless/db'
+import { profiles } from '@swipeless/db/schema'
 import {
   isPhotoKey,
   PhotoStorage,
   PhotoStorageLive,
   validPhotoSignature,
-} from '@doubleblind/photos'
+} from '@swipeless/photos'
 import { eq } from 'drizzle-orm'
 import { Config, Effect, Redacted } from 'effect'
 import { auth } from '../../../../auth.ts'

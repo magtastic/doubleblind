@@ -1,9 +1,9 @@
-import { HealthResponse } from '@doubleblind/shared'
 import { HttpApiBuilder } from '@effect/platform'
+import { HealthResponse } from '@swipeless/shared'
 import { Effect, Layer } from 'effect'
-import { BearerAuth, DoubleblindApi } from './api.ts'
+import { BearerAuth, SwipelessApi } from './api.ts'
 import { Caller } from './caller.ts'
-import { CurrentProfile, Doubleblind } from './service.ts'
+import { CurrentProfile, Swipeless } from './service.ts'
 
 /**
  * The REST half of authentication: the platform pulls the token out of the
@@ -19,12 +19,12 @@ export const BearerAuthLive = Layer.effect(
   })
 )
 
-export const DoubleblindGroupLive = HttpApiBuilder.group(
-  DoubleblindApi,
-  'doubleblind',
+export const SwipelessGroupLive = HttpApiBuilder.group(
+  SwipelessApi,
+  'swipeless',
   (handlers) =>
     Effect.gen(function* () {
-      const service = yield* Doubleblind
+      const service = yield* Swipeless
 
       return handlers
         .handle('health', () =>

@@ -7,7 +7,7 @@ import { PgClient } from '@effect/sql-pg'
 import { Config, Effect, Layer } from 'effect'
 
 /**
- * Test-only database support. Imported as `@doubleblind/db/testing`.
+ * Test-only database support. Imported as `@swipeless/db/testing`.
  *
  * Module tests run against a real Postgres rather than a mock: the hard
  * filters, the pgvector ordering and the cascade on delete are the parts most

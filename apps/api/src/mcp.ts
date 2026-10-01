@@ -1,3 +1,5 @@
+import { McpServer, Tool, Toolkit } from '@effect/ai'
+import { HttpServerRequest } from '@effect/platform'
 import {
   CandidatesError,
   CandidatesResponse,
@@ -20,12 +22,10 @@ import {
   SetupsError,
   SetupsResponse,
   Unauthorized,
-} from '@doubleblind/shared'
-import { McpServer, Tool, Toolkit } from '@effect/ai'
-import { HttpServerRequest } from '@effect/platform'
+} from '@swipeless/shared'
 import { Effect, Layer, Option, Schema } from 'effect'
 import { Caller, tokenFromAuthorization } from './caller.ts'
-import { Doubleblind } from './service.ts'
+import { Swipeless } from './service.ts'
 
 /**
  * MCP is the primary interface: an agent publishes its human, reads
@@ -33,13 +33,13 @@ import { Doubleblind } from './service.ts'
  *
  * Tool parameters come straight from the shared contract's Schema classes, the
  * failures are the same per-operation unions the REST endpoints declare, and
- * every handler calls the same Doubleblind service the HttpApi handlers call.
+ * every handler calls the same Swipeless service the HttpApi handlers call.
  *
  * A declared failure reaches the agent as a tool error result, not a protocol
  * error, so the agent can read the tag and act on it.
  */
 
-const publish = Tool.make('doubleblind_publish', {
+const publish = Tool.make('swipeless_publish', {
   description:
     'Publish a third-person brief about your human so other agents can find them. An optional inline photo is uploaded to private object storage. Returns a profileId and a bearer token — save the token, it is shown once and is required by every other tool.',
   parameters: Profile.fields,
@@ -47,7 +47,7 @@ const publish = Tool.make('doubleblind_publish', {
   failure: PublishError,
 })
 
-const candidates = Tool.make('doubleblind_candidates', {
+const candidates = Tool.make('swipeless_candidates', {
   description:
     'Get the top matching briefs for your human, best first. Read them and decide who is worth expressing interest in.',
   parameters: {
@@ -57,7 +57,7 @@ const candidates = Tool.make('doubleblind_candidates', {
   failure: CandidatesError,
 })
 
-const interest = Tool.make('doubleblind_interest', {
+const interest = Tool.make('swipeless_interest', {
   description:
     'Express interest in one candidate. If their agent has already expressed interest in your human, the pair becomes a mutual setup and you can propose a date.',
   parameters: InterestRequest.fields,
@@ -65,7 +65,7 @@ const interest = Tool.make('doubleblind_interest', {
   failure: InterestError,
 })
 
-const propose = Tool.make('doubleblind_propose', {
+const propose = Tool.make('swipeless_propose', {
   description:
     'Propose a public venue and up to three time slots for a mutual setup. The other agent may counter once; after that, confirm a slot or decline.',
   parameters: ProposeRequest.fields,
@@ -73,7 +73,7 @@ const propose = Tool.make('doubleblind_propose', {
   failure: ProposeError,
 })
 
-const confirm = Tool.make('doubleblind_confirm', {
+const confirm = Tool.make('swipeless_confirm', {
   description:
     'Confirm one proposed slot on behalf of your human. Once both sides confirm the same slot, this returns the other person’s first name, phone and optional photo.',
   parameters: ConfirmRequest.fields,
@@ -81,7 +81,7 @@ const confirm = Tool.make('doubleblind_confirm', {
   failure: ConfirmError,
 })
 
-const decline = Tool.make('doubleblind_decline', {
+const decline = Tool.make('swipeless_decline', {
   description:
     'Decline a setup on behalf of your human. Final: the setup closes for both sides and the other agent is told only that it was declined.',
   parameters: DeclineRequest.fields,
@@ -95,21 +95,21 @@ const decline = Tool.make('doubleblind_decline', {
  * and CallToolResult then rejects — the tool could never report success. A
  * one-field acknowledgement is the smallest thing that survives the trip.
  */
-const deleteProfile = Tool.make('doubleblind_delete', {
+const deleteProfile = Tool.make('swipeless_delete', {
   description:
     'Permanently delete your human’s profile and every setup it belongs to. Requires the bearer token issued at publish.',
   success: Schema.Struct({ deleted: Schema.Literal(true) }),
   failure: DeleteError,
 })
 
-const setups = Tool.make('doubleblind_setups', {
+const setups = Tool.make('swipeless_setups', {
   description:
     'List your human’s setups with their current status, so you know what needs a proposal, a counter or a confirmation.',
   success: SetupsResponse,
   failure: SetupsError,
 })
 
-export const DoubleblindToolkit = Toolkit.make(
+export const SwipelessToolkit = Toolkit.make(
   publish,
   candidates,
   interest,
@@ -148,41 +148,41 @@ const currentProfile = (caller: Caller) =>
     return yield* caller.resolve(token)
   })
 
-const DoubleblindToolkitLive = DoubleblindToolkit.toLayer(
+const SwipelessToolkitLive = SwipelessToolkit.toLayer(
   Effect.gen(function* () {
-    const service = yield* Doubleblind
+    const service = yield* Swipeless
     const caller = yield* Caller
     const current = currentProfile(caller)
 
     return {
       // Publishing is how an agent gets a token, so it is the one tool that
       // does not need one.
-      doubleblind_publish: (params) => service.publish(new Profile(params)),
-      doubleblind_candidates: ({ limit }) =>
+      swipeless_publish: (params) => service.publish(new Profile(params)),
+      swipeless_candidates: ({ limit }) =>
         Effect.flatMap(current, (profile) =>
           service.candidates(profile, limit ?? 10)
         ),
-      doubleblind_interest: (params) =>
+      swipeless_interest: (params) =>
         Effect.flatMap(current, (profile) =>
           service.interest(profile, new InterestRequest(params))
         ),
-      doubleblind_propose: (params) =>
+      swipeless_propose: (params) =>
         Effect.flatMap(current, (profile) =>
           service.propose(profile, new ProposeRequest(params))
         ),
-      doubleblind_confirm: (params) =>
+      swipeless_confirm: (params) =>
         Effect.flatMap(current, (profile) =>
           service.confirm(profile, new ConfirmRequest(params))
         ),
-      doubleblind_decline: (params) =>
+      swipeless_decline: (params) =>
         Effect.flatMap(current, (profile) =>
           service.decline(profile, new DeclineRequest(params))
         ),
-      doubleblind_delete: () =>
+      swipeless_delete: () =>
         Effect.flatMap(current, (profile) =>
           service.deleteProfile(profile).pipe(Effect.as({ deleted: true }))
         ),
-      doubleblind_setups: () =>
+      swipeless_setups: () =>
         Effect.flatMap(current, (profile) => service.setups(profile)),
     }
   })
@@ -198,11 +198,9 @@ const DoubleblindToolkitLive = DoubleblindToolkit.toLayer(
  * other creates two registries and the server reports zero tools.
  */
 export const McpRoutes = Layer.mergeAll(
-  McpServer.toolkit(DoubleblindToolkit).pipe(
-    Layer.provide(DoubleblindToolkitLive)
-  ),
+  McpServer.toolkit(SwipelessToolkit).pipe(Layer.provide(SwipelessToolkitLive)),
   McpServer.layerHttpRouter({
-    name: 'doubleblind',
+    name: 'swipeless',
     version: '0.0.0',
     path: '/mcp',
   })

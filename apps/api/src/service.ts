@@ -1,6 +1,7 @@
-import { PgDrizzle } from '@doubleblind/db'
-import { adminEvents, profiles, setups } from '@doubleblind/db/schema'
-import { PhotoStorage } from '@doubleblind/photos'
+import { EmbeddingModel } from '@effect/ai'
+import { PgDrizzle } from '@swipeless/db'
+import { adminEvents, profiles, setups } from '@swipeless/db/schema'
+import { PhotoStorage } from '@swipeless/photos'
 import {
   Candidate,
   CandidateCore,
@@ -21,8 +22,7 @@ import {
   PublishResponse,
   type RateLimited,
   type SetupsResponse,
-} from '@doubleblind/shared'
-import { EmbeddingModel } from '@effect/ai'
+} from '@swipeless/shared'
 import {
   and,
   arrayContains,
@@ -70,7 +70,7 @@ export const PROFILE_TTL_MS = 90 * 24 * 60 * 60 * 1000
  */
 const now = Effect.map(Clock.currentTimeMillis, (millis) => new Date(millis))
 
-export class Doubleblind extends Effect.Service<Doubleblind>()('Doubleblind', {
+export class Swipeless extends Effect.Service<Swipeless>()('Swipeless', {
   dependencies: [SetupLifecycle.Default],
   effect: Effect.gen(function* () {
     const db = yield* PgDrizzle.PgDrizzle

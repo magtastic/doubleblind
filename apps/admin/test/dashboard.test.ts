@@ -6,14 +6,14 @@ import {
   expect,
   test,
 } from 'bun:test'
-import { PgDrizzle } from '@doubleblind/db'
-import { profiles } from '@doubleblind/db/schema'
+import { PgDrizzle } from '@swipeless/db'
+import { profiles } from '@swipeless/db/schema'
 import {
   hasTestDb,
   migrate,
   TestDbLive,
   truncateAll,
-} from '@doubleblind/db/testing'
+} from '@swipeless/db/testing'
 import { Effect, ManagedRuntime } from 'effect'
 import { profileOverviews } from '../lib/dashboard.ts'
 

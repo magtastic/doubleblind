@@ -1,11 +1,7 @@
 import { createHash } from 'node:crypto'
-import { DbLive, PgDrizzle } from '@doubleblind/db'
-import { profiles } from '@doubleblind/db/schema'
-import {
-  decodePhoto,
-  PhotoStorage,
-  PhotoStorageLive,
-} from '@doubleblind/photos'
+import { DbLive, PgDrizzle } from '@swipeless/db'
+import { profiles } from '@swipeless/db/schema'
+import { decodePhoto, PhotoStorage, PhotoStorageLive } from '@swipeless/photos'
 import { and, eq, like, sql } from 'drizzle-orm'
 import { Effect } from 'effect'
 

@@ -1,6 +1,9 @@
-# doubleblind
+# swipeless
 
-Agents match their humans and arrange a blind date. Humans only confirm the time and place.
+No swiping. No small talk. Just a date.
+
+Your agent gets to know you, finds someone worth meeting, and sends you a note with a time and
+place.
 
 Read [PRODUCT.md](PRODUCT.md) first. It is the source of truth for what this is.
 
@@ -9,11 +12,13 @@ Read [PRODUCT.md](PRODUCT.md) first. It is the source of truth for what this is.
 Install the skill into any agent that reads skill folders:
 
 ```sh
-npx skills add magtastic/doubleblind
+npx skills add magtastic/swipeless
 ```
 
-Or, in Claude Code, add this repo as a plugin. Then say "find me a date". The skill lives in
-[skills/doubleblind](skills/doubleblind/SKILL.md).
+Or, in
+Claude Code, add this repo as a plugin. Then say "find me a date". The skill lives in
+[skills/swipeless](skills/swipeless/SKILL.md) and talks to the `swipeless` MCP server through the
+`swipeless_*` tools.
 
 ## For people working on the service
 
@@ -41,15 +46,14 @@ bun run verify       # typecheck + biome + tests
 
 | | |
 |---|---|
-| API + MCP | https://doubleblind-api.vercel.app |
-| Admin | https://doubleblind-admin.vercel.app |
+| API + MCP | https://swipeless-api.vercel.app |
+| Admin | https://swipeless-admin.vercel.app |
 
 Both are Vercel projects under the `smitten-server` team. Neither is connected to this repo on
 Vercel's side, deliberately: GitHub Actions owns deployment, so the tests gate it.
 
-`*.vercel.app` is where this lives for now, not where it lands. `doubleblind.date` is bought and
-has no DNS yet; moving to it is deferred. The skill hardcodes the API URL, so that move is also a
-skill release.
+`*.vercel.app` is where this lives for now, not where it lands. The swipeless domain is not
+chosen yet. The skill hardcodes the API URL, so moving it is also a skill release.
 
 - `.github/workflows/pr.yml` runs on pull requests to `main` and on pushes to `main`.
 - `.github/workflows/deploy.yml` runs on pushes to `main`: verify, then migrate, then the two
@@ -65,22 +69,22 @@ running services need is a Vercel project environment variable, not an Actions s
 | Secret | Where it comes from |
 |---|---|
 | `VERCEL_TOKEN` | vercel.com → Account Settings → Tokens, scoped to the `smitten-server` team |
-| `DATABASE_URL` | 1Password, item `doubleblind/DATABASE_URL`. Same value as `bun run get:env` writes. The role must be allowed `CREATE EXTENSION vector` |
+| `DATABASE_URL` | 1Password, item `swipeless/DATABASE_URL`. Same value as `bun run get:env` writes. The role must be allowed `CREATE EXTENSION vector` |
 
 ### Releasing the skill
 
 npm uses trusted publishing through GitHub Actions, without an npm token. The package's
-trusted publisher must name owner `magtastic`, repository `doubleblind`, and workflow
+trusted publisher must name owner `magtastic`, repository `swipeless`, and workflow
 `deploy.yml`, with no environment name and **Allow npm publish** enabled. The release job
 requests `id-token: write` and uses npm 11.12.1 to authenticate through OIDC.
 
-`npx skills add magtastic/doubleblind` installs from GitHub, not from npm: the `skills` CLI
+`npx skills add magtastic/swipeless` installs from GitHub, not from npm: the `skills` CLI
 resolves git and URL sources only, and keys the install directory off the `name` in SKILL.md
 frontmatter. That path needs the repo to be public and nothing else. The npm package exists
 alongside it, for projects that depend on the skill and run `npx skills sync`, which scans
 `node_modules` for a `SKILL.md` at a package root.
 
-To cut a release, bump the version in **both** `skills/doubleblind/package.json` and
+To cut a release, bump the version in **both** `skills/swipeless/package.json` and
 `.claude-plugin/plugin.json` to the same number, then merge to `main`. The release job fails if
 the two disagree. It publishes to npm and cuts a `v<version>` GitHub release, and skips either
 one cleanly if that version is already out — so merges that do not touch the version are a no-op.
@@ -96,7 +100,7 @@ bun run verify
 bunx drizzle-kit migrate
 
 export VERCEL_ORG_ID=team_gDnXmbne0PuTiJ95im5rbTr6
-export VERCEL_PROJECT_ID=prj_KnEDfyETA8ldC7VZvB2YjDR1jnhk   # doubleblind-admin: prj_ImBVG3ODEhUEcAHcEMbQlaBMZTgi
+export VERCEL_PROJECT_ID=prj_KnEDfyETA8ldC7VZvB2YjDR1jnhk   # swipeless-admin: prj_ImBVG3ODEhUEcAHcEMbQlaBMZTgi
 npx vercel@59.16.0 pull --yes --environment=production --token="$VERCEL_TOKEN"
 npx vercel@59.16.0 build --prod --token="$VERCEL_TOKEN"
 npx vercel@59.16.0 deploy --prebuilt --prod --token="$VERCEL_TOKEN"
@@ -107,10 +111,10 @@ id for the admin.
 
 ## Private photos
 
-Uploaded photos live in the private Vercel Blob store `doubleblind-photos`. The database's
+Uploaded photos live in the private Vercel Blob store `swipeless-photos`. The database's
 `profiles.photo_url` field stores an object key for uploads; existing external HTTPS URLs
 remain supported. `BLOB_READ_WRITE_TOKEN` is configured on the API and admin production
-projects and stored in the `doubleblind` 1Password vault.
+projects and stored in the `swipeless` 1Password vault.
 
 Publish accepts a small inline image as transport, uploads decoded bytes to Blob, and saves
 only the key. Confirmed matches receive links valid for ten minutes; checking setups returns

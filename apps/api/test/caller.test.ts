@@ -6,15 +6,15 @@ import {
   expect,
   test,
 } from 'bun:test'
-import { PgDrizzle } from '@doubleblind/db'
-import { profiles } from '@doubleblind/db/schema'
+import { PgDrizzle } from '@swipeless/db'
+import { profiles } from '@swipeless/db/schema'
 import {
   hasTestDb,
   migrate,
   TestDbLive,
   truncateAll,
-} from '@doubleblind/db/testing'
-import { Gone, PrivateLayer, Profile, Unauthorized } from '@doubleblind/shared'
+} from '@swipeless/db/testing'
+import { Gone, PrivateLayer, Profile, Unauthorized } from '@swipeless/shared'
 import { eq } from 'drizzle-orm'
 import {
   Duration,
@@ -27,7 +27,7 @@ import {
 } from 'effect'
 import { Caller, tokenFromAuthorization } from '../src/caller.ts'
 import { EmbeddingModelDeterministic } from '../src/embeddings.ts'
-import { Doubleblind } from '../src/service.ts'
+import { Swipeless } from '../src/service.ts'
 import { TestPhotos } from './support/photos.ts'
 
 /**
@@ -46,7 +46,7 @@ if (!hasTestDb) {
   )
 }
 
-const TestLayer = Layer.mergeAll(Caller.Default, Doubleblind.Default).pipe(
+const TestLayer = Layer.mergeAll(Caller.Default, Swipeless.Default).pipe(
   Layer.provide(EmbeddingModelDeterministic),
   Layer.provide(TestPhotos),
   Layer.provideMerge(TestDbLive)
@@ -69,7 +69,7 @@ const profileFixture = new Profile({
 })
 
 /** Publishing is the only way a token is ever issued, so tests use it. */
-const publish = Doubleblind.pipe(
+const publish = Swipeless.pipe(
   Effect.flatMap((service) => service.publish(profileFixture))
 )
 

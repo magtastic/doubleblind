@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "doubleblind",
+      "name": "swipeless",
       "devDependencies": {
         "@biomejs/biome": "catalog:",
         "@types/bun": "catalog:",
@@ -12,12 +12,12 @@
       },
     },
     "apps/admin": {
-      "name": "@doubleblind/admin",
+      "name": "@swipeless/admin",
       "version": "0.0.0",
       "dependencies": {
-        "@doubleblind/db": "workspace:*",
-        "@doubleblind/photos": "workspace:*",
-        "@doubleblind/shared": "workspace:*",
+        "@swipeless/db": "workspace:*",
+        "@swipeless/photos": "workspace:*",
+        "@swipeless/shared": "workspace:*",
         "drizzle-orm": "catalog:",
         "effect": "catalog:",
         "next": "catalog:",
@@ -36,12 +36,9 @@
       },
     },
     "apps/api": {
-      "name": "@doubleblind/api",
+      "name": "@swipeless/api",
       "version": "0.0.0",
       "dependencies": {
-        "@doubleblind/db": "workspace:*",
-        "@doubleblind/photos": "workspace:*",
-        "@doubleblind/shared": "workspace:*",
         "@effect/ai": "catalog:",
         "@effect/ai-openai": "catalog:",
         "@effect/experimental": "catalog:",
@@ -49,6 +46,9 @@
         "@effect/platform-bun": "catalog:",
         "@effect/rpc": "catalog:",
         "@effect/sql": "catalog:",
+        "@swipeless/db": "workspace:*",
+        "@swipeless/photos": "workspace:*",
+        "@swipeless/shared": "workspace:*",
         "drizzle-orm": "catalog:",
         "effect": "catalog:",
       },
@@ -58,13 +58,13 @@
       },
     },
     "packages/db": {
-      "name": "@doubleblind/db",
+      "name": "@swipeless/db",
       "version": "0.0.0",
       "dependencies": {
-        "@doubleblind/shared": "workspace:*",
         "@effect/sql": "catalog:",
         "@effect/sql-drizzle": "catalog:",
         "@effect/sql-pg": "catalog:",
+        "@swipeless/shared": "workspace:*",
         "drizzle-orm": "catalog:",
         "effect": "catalog:",
         "pg": "catalog:",
@@ -76,7 +76,7 @@
       },
     },
     "packages/photos": {
-      "name": "@doubleblind/photos",
+      "name": "@swipeless/photos",
       "dependencies": {
         "@vercel/blob": "^2.3.0",
         "effect": "catalog:",
@@ -87,7 +87,7 @@
       },
     },
     "packages/shared": {
-      "name": "@doubleblind/shared",
+      "name": "@swipeless/shared",
       "version": "0.0.0",
       "dependencies": {
         "@effect/platform": "catalog:",
@@ -147,16 +147,6 @@
     "@biomejs/cli-win32-arm64": ["@biomejs/cli-win32-arm64@2.5.13", "", { "os": "win32", "cpu": "arm64" }, "sha512-+WD13qshXrr0Icv4BfsAdzm8Fs3TL+nZ59zEQxsYNd8lcgZJ0A5+OrlwsL1PipVCmWeRpxgIPD6DAcEd7smkCQ=="],
 
     "@biomejs/cli-win32-x64": ["@biomejs/cli-win32-x64@2.5.13", "", { "os": "win32", "cpu": "x64" }, "sha512-VOofU/nW761XWzUeUNE8zzYNyPrxuMuNFMizL0qz7J75yeV8N7WFheUlk1/K6dOkaFpH9wJ+lDKlwjAbw0346w=="],
-
-    "@doubleblind/admin": ["@doubleblind/admin@workspace:apps/admin"],
-
-    "@doubleblind/api": ["@doubleblind/api@workspace:apps/api"],
-
-    "@doubleblind/db": ["@doubleblind/db@workspace:packages/db"],
-
-    "@doubleblind/photos": ["@doubleblind/photos@workspace:packages/photos"],
-
-    "@doubleblind/shared": ["@doubleblind/shared@workspace:packages/shared"],
 
     "@drizzle-team/brocli": ["@drizzle-team/brocli@0.10.2", "", {}, "sha512-z33Il7l5dKjUgGULTqBsQBQwckHh5AbIuxhdsIxDDiZAzBOrZO6q9ogcWC65kU382AfynTfgNumVcNIjuIua6w=="],
 
@@ -367,6 +357,16 @@
     "@standard-schema/spec": ["@standard-schema/spec@1.1.0", "", {}, "sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w=="],
 
     "@swc/helpers": ["@swc/helpers@0.5.23", "", { "dependencies": { "tslib": "^2.8.0" } }, "sha512-5lSsMOTXURePglDfvuAQUqkGek9Hg2kksOYay2m0+XR++b2NWYL/4sWyuvVBIs8oKnJaxkdi9whaL/sqN13afw=="],
+
+    "@swipeless/admin": ["@swipeless/admin@workspace:apps/admin"],
+
+    "@swipeless/api": ["@swipeless/api@workspace:apps/api"],
+
+    "@swipeless/db": ["@swipeless/db@workspace:packages/db"],
+
+    "@swipeless/photos": ["@swipeless/photos@workspace:packages/photos"],
+
+    "@swipeless/shared": ["@swipeless/shared@workspace:packages/shared"],
 
     "@tailwindcss/node": ["@tailwindcss/node@4.3.3", "", { "dependencies": { "@jridgewell/remapping": "^2.3.5", "enhanced-resolve": "^5.24.1", "jiti": "^2.7.0", "lightningcss": "1.32.0", "magic-string": "^0.30.21", "source-map-js": "^1.2.1", "tailwindcss": "4.3.3" } }, "sha512-/T8IKEsf9VTU6tLjgC7+sv2mOPtQxzE2jMw7u4Tt40Tx+QSZxpzh95/H6cMKoja9XuW7iMdLJYBB0o9G1CaAgg=="],
 

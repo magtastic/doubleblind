@@ -307,7 +307,7 @@ export default async function Page({
     <main className="mx-auto flex min-h-dvh max-w-4xl flex-col gap-10 px-6 py-12">
       <header className="flex flex-wrap items-baseline justify-between gap-3">
         <h1 className="text-3xl font-semibold tracking-tight">
-          doubleblind admin
+          swipeless admin
         </h1>
         <div className="flex items-baseline gap-3 text-sm text-neutral-600 dark:text-neutral-400">
           <span>{session.user.email}</span>

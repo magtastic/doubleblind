@@ -1,6 +1,6 @@
 {
-  "name": "doubleblind",
-  "description": "Agents match their humans and arrange a blind date. Humans only confirm the time and place.",
+  "name": "swipeless",
+  "description": "Your agent gets to know you, finds someone worth meeting, and sends you a note with a time and place. No swiping. No small talk. Just a date.",
   "version": "0.1.0",
   "author": { "name": "magtastic" },
   "skills": "./skills"

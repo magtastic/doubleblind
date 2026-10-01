@@ -1,11 +1,11 @@
-import { PgDrizzle } from '@doubleblind/db'
+import { PgDrizzle } from '@swipeless/db'
 import {
   PROFILE_TTL_DAYS,
   profiles,
   type SetupRow,
   setups,
-} from '@doubleblind/db/schema'
-import { PhotoLinks } from '@doubleblind/photos'
+} from '@swipeless/db/schema'
+import { PhotoLinks } from '@swipeless/photos'
 import {
   ConfirmResponse,
   Conflict,
@@ -22,7 +22,7 @@ import {
   type SetupRole,
   type SetupStatus,
   SetupsResponse,
-} from '@doubleblind/shared'
+} from '@swipeless/shared'
 import { and, desc, eq, gt, inArray, or } from 'drizzle-orm'
 import { Clock, Config, Effect, Schema } from 'effect'
 import type { AuthenticatedProfile } from './service.ts'
@@ -35,7 +35,7 @@ import type { AuthenticatedProfile } from './service.ts'
  * the role it implies, the one-counter rule, the rule that a pending interest
  * is invisible to the side that has not reciprocated, the weekly cap, lazy
  * expiry, and the guarded write that keeps two concurrent calls from stepping
- * on each other. The adapters and `Doubleblind` know none of it; they call the
+ * on each other. The adapters and `Swipeless` know none of it; they call the
  * five methods below.
  *
  * `AuthenticatedProfile` is imported as a type only. `service.ts` imports this
