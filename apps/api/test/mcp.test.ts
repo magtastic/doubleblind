@@ -3,7 +3,7 @@ import {
   CandidatesResponse,
   DeclineResponse,
   NotFound,
-} from '@doubleblind/shared'
+} from '@swipeless/shared'
 import { Effect } from 'effect'
 import { disposeHandlers, openHandler } from './support/app-handler.ts'
 import { GONE_TOKEN, GOOD_TOKEN, UNKNOWN_TOKEN } from './support/fake-caller.ts'
@@ -11,7 +11,7 @@ import {
   FAKE_PROFILE_ID,
   FAKE_SETUP_ID,
   fakeApp,
-} from './support/fake-doubleblind.ts'
+} from './support/fake-swipeless.ts'
 import { callTool, initialize, readRpc, rpc } from './support/mcp-client.ts'
 
 /**
@@ -23,14 +23,14 @@ import { callTool, initialize, readRpc, rpc } from './support/mcp-client.ts'
 afterAll(disposeHandlers)
 
 const TOOLS = [
-  'doubleblind_publish',
-  'doubleblind_candidates',
-  'doubleblind_interest',
-  'doubleblind_propose',
-  'doubleblind_confirm',
-  'doubleblind_decline',
-  'doubleblind_setups',
-  'doubleblind_delete',
+  'swipeless_publish',
+  'swipeless_candidates',
+  'swipeless_interest',
+  'swipeless_propose',
+  'swipeless_confirm',
+  'swipeless_decline',
+  'swipeless_setups',
+  'swipeless_delete',
 ]
 
 const VALID_PROFILE = {
@@ -49,7 +49,7 @@ const VALID_PROFILE = {
 }
 
 describe('MCP /mcp', () => {
-  test('lists the eight doubleblind tools', async () => {
+  test('lists the eight swipeless tools', async () => {
     const handler = openHandler(fakeApp())
     const session = await initialize(handler)
 
@@ -73,7 +73,7 @@ describe('MCP /mcp', () => {
 
     const json = await callTool(
       handler,
-      'doubleblind_interest',
+      'swipeless_interest',
       { profileId: FAKE_PROFILE_ID },
       { session, token: GOOD_TOKEN }
     )
@@ -97,7 +97,7 @@ describe('MCP /mcp', () => {
 
     const json = await callTool(
       handler,
-      'doubleblind_decline',
+      'swipeless_decline',
       { setupId: FAKE_SETUP_ID },
       { session, token: GOOD_TOKEN }
     )
@@ -117,7 +117,7 @@ describe('MCP authentication is per call', () => {
   const call = async (token: string | undefined) => {
     const handler = openHandler(fakeApp())
     const session = await initialize(handler)
-    return callTool(handler, 'doubleblind_setups', {}, { session, token })
+    return callTool(handler, 'swipeless_setups', {}, { session, token })
   }
 
   test('an authenticated tool without a token is a typed Unauthorized', async () => {
@@ -160,7 +160,7 @@ describe('MCP authentication is per call', () => {
 
     const json = await callTool(
       handler,
-      'doubleblind_candidates',
+      'swipeless_candidates',
       { limit: 3 },
       { session, token: GOOD_TOKEN }
     )
@@ -173,7 +173,7 @@ describe('MCP authentication is per call', () => {
     const handler = openHandler(fakeApp())
     const session = await initialize(handler)
 
-    const json = await callTool(handler, 'doubleblind_publish', VALID_PROFILE, {
+    const json = await callTool(handler, 'swipeless_publish', VALID_PROFILE, {
       session,
     })
 

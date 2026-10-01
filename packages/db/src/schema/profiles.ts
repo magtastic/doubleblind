@@ -1,4 +1,4 @@
-import { GENDERS } from '@doubleblind/shared'
+import { GENDERS } from '@swipeless/shared'
 import {
   index,
   integer,

@@ -1,7 +1,7 @@
 import type { Layer } from 'effect'
 import type { Caller } from '../../src/caller.ts'
 import { makeWebHandler } from '../../src/http.ts'
-import type { Doubleblind } from '../../src/service.ts'
+import type { Swipeless } from '../../src/service.ts'
 
 export type WebHandler = (request: Request) => Promise<Response>
 
@@ -13,7 +13,7 @@ export type WebHandler = (request: Request) => Promise<Response>
 const opened: Array<() => Promise<void>> = []
 
 export const openHandler = <E>(
-  appLayer: Layer.Layer<Doubleblind | Caller, E>
+  appLayer: Layer.Layer<Swipeless | Caller, E>
 ): WebHandler => {
   const { handler, dispose } = makeWebHandler(appLayer)
   opened.push(dispose)

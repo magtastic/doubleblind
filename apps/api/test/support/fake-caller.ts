@@ -1,4 +1,4 @@
-import { Gone, type ProfileId, Unauthorized } from '@doubleblind/shared'
+import { Gone, type ProfileId, Unauthorized } from '@swipeless/shared'
 import { Effect, Layer, Redacted } from 'effect'
 import { Caller } from '../../src/caller.ts'
 import type { AuthenticatedProfile } from '../../src/service.ts'

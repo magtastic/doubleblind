@@ -95,7 +95,7 @@ export function signPhoto(
   secret: string
 ): string {
   return createHmac('sha256', secret)
-    .update(`doubleblind-photo:${profileId}:${expires}`)
+    .update(`swipeless-photo:${profileId}:${expires}`)
     .digest('hex')
 }
 export function validPhotoSignature(
@@ -144,7 +144,7 @@ export const PhotoLinksLive = Layer.effect(
       yield* Config.redacted('BLOB_READ_WRITE_TOKEN')
     )
     const baseUrl = yield* Config.string('PHOTO_BASE_URL').pipe(
-      Config.withDefault('https://doubleblind-admin.vercel.app')
+      Config.withDefault('https://swipeless-admin.vercel.app')
     )
     return photoLinks(token, baseUrl)
   })

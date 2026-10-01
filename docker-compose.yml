@@ -1,21 +1,21 @@
 services:
   postgres:
     image: pgvector/pgvector:pg17
-    container_name: doubleblind-postgres
+    container_name: swipeless-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: doubleblind
-      POSTGRES_USER: doubleblind
-      POSTGRES_PASSWORD: doubleblind
+      POSTGRES_DB: swipeless
+      POSTGRES_USER: swipeless
+      POSTGRES_PASSWORD: swipeless
     ports:
       - '5434:5432'
     volumes:
-      - doubleblind-pgdata:/var/lib/postgresql/data
+      - swipeless-pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U doubleblind -d doubleblind']
+      test: ['CMD-SHELL', 'pg_isready -U swipeless -d swipeless']
       interval: 5s
       timeout: 5s
       retries: 10
 
 volumes:
-  doubleblind-pgdata:
+  swipeless-pgdata:

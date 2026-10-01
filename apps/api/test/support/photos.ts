@@ -4,7 +4,7 @@ import {
   PhotoLinks,
   PhotoStorage,
   photoLinks,
-} from '@doubleblind/photos'
+} from '@swipeless/photos'
 import { Effect, Layer } from 'effect'
 
 /** Object storage is a network boundary; link signing and image validation run real. */

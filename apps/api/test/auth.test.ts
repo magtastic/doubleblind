@@ -11,11 +11,11 @@ import {
   migrate,
   TestDbLive,
   truncateAll,
-} from '@doubleblind/db/testing'
+} from '@swipeless/db/testing'
 import { Layer, ManagedRuntime } from 'effect'
 import { Caller } from '../src/caller.ts'
 import { EmbeddingModelDeterministic } from '../src/embeddings.ts'
-import { Doubleblind } from '../src/service.ts'
+import { Swipeless } from '../src/service.ts'
 import {
   disposeHandlers,
   openHandler,
@@ -46,7 +46,7 @@ if (!hasTestDb) {
 }
 
 /** The same shape as AppLive, with the test database and no OpenAI key. */
-const AppLayer = Layer.mergeAll(Doubleblind.Default, Caller.Default).pipe(
+const AppLayer = Layer.mergeAll(Swipeless.Default, Caller.Default).pipe(
   Layer.provide(EmbeddingModelDeterministic),
   Layer.provide(TestPhotos),
   Layer.provideMerge(TestDbLive)
@@ -88,7 +88,7 @@ const publish = async (
   session: string | null,
   args: Record<string, unknown>
 ): Promise<Published> => {
-  const json = await callTool(handler, 'doubleblind_publish', args, { session })
+  const json = await callTool(handler, 'swipeless_publish', args, { session })
   expect(json.result.isError).toBeFalsy()
   return json.result.structuredContent as Published
 }
@@ -122,13 +122,13 @@ describeDb('authentication end to end', () => {
 
     const forSigrun = await callTool(
       handler,
-      'doubleblind_candidates',
+      'swipeless_candidates',
       {},
       { session, token: sigrun.token }
     )
     const forJon = await callTool(
       handler,
-      'doubleblind_candidates',
+      'swipeless_candidates',
       {},
       { session, token: jon.token }
     )
@@ -164,7 +164,7 @@ describeDb('authentication end to end', () => {
 
     const deleted = await callTool(
       handler,
-      'doubleblind_delete',
+      'swipeless_delete',
       {},
       { session, token: sigrun.token }
     )
@@ -174,7 +174,7 @@ describeDb('authentication end to end', () => {
     // Deletion is a hard delete, so the token resolves to nothing at all.
     const afterDelete = await callTool(
       handler,
-      'doubleblind_candidates',
+      'swipeless_candidates',
       {},
       { session, token: sigrun.token }
     )
@@ -185,7 +185,7 @@ describeDb('authentication end to end', () => {
 
     const stillJon = await callTool(
       handler,
-      'doubleblind_candidates',
+      'swipeless_candidates',
       {},
       { session, token: jon.token }
     )

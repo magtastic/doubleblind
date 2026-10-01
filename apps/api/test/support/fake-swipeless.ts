@@ -6,15 +6,15 @@ import {
   ProposeResponse,
   PublishResponse,
   SetupsResponse,
-} from '@doubleblind/shared'
+} from '@swipeless/shared'
 import { Effect, Layer } from 'effect'
-import { Doubleblind } from '../../src/service.ts'
+import { Swipeless } from '../../src/service.ts'
 import { FAKE_PROFILE_ID, fakeCaller } from './fake-caller.ts'
 
 export { FAKE_PROFILE_ID }
 
 /**
- * A canned Doubleblind for the transport tests.
+ * A canned Swipeless for the transport tests.
  *
  * These tests are about the adapters: routing, schema validation, and the
  * mapping from a declared failure to an HTTP status or an MCP tool error. The
@@ -25,7 +25,7 @@ export { FAKE_PROFILE_ID }
 
 export const FAKE_SETUP_ID = '22222222-2222-4222-8222-222222222222'
 
-type FakeService = Omit<Doubleblind, '_tag'>
+type FakeService = Omit<Swipeless, '_tag'>
 
 const defaults: FakeService = {
   publish: () =>
@@ -56,6 +56,6 @@ export const fakeApp = (
   caller = fakeCaller()
 ) =>
   Layer.mergeAll(
-    Layer.succeed(Doubleblind, Doubleblind.make({ ...defaults, ...overrides })),
+    Layer.succeed(Swipeless, Swipeless.make({ ...defaults, ...overrides })),
     caller
   )

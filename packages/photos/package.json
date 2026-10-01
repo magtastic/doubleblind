@@ -1,5 +1,5 @@
 {
-  "name": "@doubleblind/photos",
+  "name": "@swipeless/photos",
   "private": true,
   "type": "module",
   "exports": {

@@ -6,11 +6,11 @@ import {
   Path,
 } from '@effect/platform'
 import { Layer } from 'effect'
-import { DoubleblindApi } from './api.ts'
+import { SwipelessApi } from './api.ts'
 import type { Caller } from './caller.ts'
-import { BearerAuthLive, DoubleblindGroupLive } from './handlers.ts'
+import { BearerAuthLive, SwipelessGroupLive } from './handlers.ts'
 import { McpRoutes } from './mcp.ts'
-import type { Doubleblind } from './service.ts'
+import type { Swipeless } from './service.ts'
 
 /**
  * Platform services required by addHttpApi. Deliberately runtime-agnostic —
@@ -25,8 +25,8 @@ const PlatformLive = Layer.mergeAll(
 ).pipe(Layer.provideMerge(FileSystem.layerNoop({})))
 
 /** REST routes for the website. */
-const ApiRoutes = HttpLayerRouter.addHttpApi(DoubleblindApi).pipe(
-  Layer.provide(DoubleblindGroupLive)
+const ApiRoutes = HttpLayerRouter.addHttpApi(SwipelessApi).pipe(
+  Layer.provide(SwipelessGroupLive)
 )
 
 /**
@@ -45,7 +45,7 @@ export const AllRoutes = Layer.mergeAll(ApiRoutes, McpRoutes).pipe(
  * of the same shape and no database.
  */
 export const makeWebHandler = <E>(
-  appLayer: Layer.Layer<Doubleblind | Caller, E>
+  appLayer: Layer.Layer<Swipeless | Caller, E>
 ) =>
   HttpLayerRouter.toWebHandler(
     AllRoutes.pipe(Layer.provide(appLayer), Layer.provideMerge(PlatformLive))

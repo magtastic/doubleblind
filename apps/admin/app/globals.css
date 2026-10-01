@@ -1,5 +1,101 @@
 @import "tailwindcss";
 
+/* swipeless notebook identity: ruled paper, red margin, ink-blue text. */
 :root {
   color-scheme: light dark;
+
+  --paper: #fbfcf8;
+  --sheet: #fffffe;
+  --rule: #d6e2f3;
+  --rule-strong: #b2c6e4;
+  --margin: #ee939c;
+  --ink: #2232a8;
+  --text: #262c5c;
+  --soft: #586089;
+  --hi: #f6ee5c;
+  --hi-ink: #1e2342;
+  --red: #cc3a52;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #12162c;
+    --sheet: #1a2040;
+    --rule: #232c52;
+    --rule-strong: #34407a;
+    --margin: #8c3e58;
+    --ink: #aebbff;
+    --text: #dde2f8;
+    --soft: #9ca4cb;
+    --hi: #efe55a;
+    --hi-ink: #1e2342;
+    --red: #ff8c9c;
+  }
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-sheet: var(--sheet);
+  --color-rule: var(--rule);
+  --color-rule-strong: var(--rule-strong);
+  --color-margin: var(--margin);
+  --color-ink: var(--ink);
+  --color-text: var(--text);
+  --color-soft: var(--soft);
+  --color-hi: var(--hi);
+  --color-hi-ink: var(--hi-ink);
+  --color-red: var(--red);
+
+  --font-display: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
+  --font-hand: var(--font-nanum-pen-script), ui-serif, cursive;
+}
+
+@layer base {
+  body {
+    background-color: var(--paper);
+    /* The ruled page: one 32px line, repeated. */
+    background-image: repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent 31px,
+      var(--rule) 31px,
+      var(--rule) 32px
+    );
+    color: var(--text);
+    font-family: var(--font-display);
+  }
+
+  /* The red margin line. Decorative, so it sits behind the content. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset-block: 0;
+    left: 4.5rem;
+    width: 1px;
+    background-color: var(--margin);
+    opacity: 0.55;
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  @media (max-width: 639px) {
+    body::before {
+      display: none;
+    }
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    color: var(--ink);
+    font-family: var(--font-display);
+  }
+
+  ::selection {
+    background-color: var(--hi);
+    color: var(--hi-ink);
+  }
 }

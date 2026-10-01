@@ -1,4 +1,11 @@
 import {
+  HttpApi,
+  HttpApiEndpoint,
+  HttpApiGroup,
+  HttpApiMiddleware,
+  HttpApiSecurity,
+} from '@effect/platform'
+import {
   AuthError,
   CandidatesError,
   CandidatesQuery,
@@ -21,20 +28,13 @@ import {
   PublishResponse,
   SetupsError,
   SetupsResponse,
-} from '@doubleblind/shared'
-import {
-  HttpApi,
-  HttpApiEndpoint,
-  HttpApiGroup,
-  HttpApiMiddleware,
-  HttpApiSecurity,
-} from '@effect/platform'
+} from '@swipeless/shared'
 import { Schema } from 'effect'
 import { CurrentProfile } from './service.ts'
 
 /**
  * The REST surface. Statuses are not declared here: every error in
- * `@doubleblind/shared` carries its own status annotation, and each endpoint
+ * `@swipeless/shared` carries its own status annotation, and each endpoint
  * declares the operation's failure union verbatim, so REST and MCP cannot
  * drift apart. 400 comes free from schema validation.
  */
@@ -106,7 +106,7 @@ const setups = HttpApiEndpoint.get('setups', '/setups')
   .addError(SetupsError)
   .middleware(BearerAuth)
 
-export const DoubleblindGroup = HttpApiGroup.make('doubleblind')
+export const SwipelessGroup = HttpApiGroup.make('swipeless')
   .add(health)
   .add(publish)
   .add(candidates)
@@ -117,4 +117,4 @@ export const DoubleblindGroup = HttpApiGroup.make('doubleblind')
   .add(deleteProfile)
   .add(setups)
 
-export const DoubleblindApi = HttpApi.make('doubleblind').add(DoubleblindGroup)
+export const SwipelessApi = HttpApi.make('swipeless').add(SwipelessGroup)

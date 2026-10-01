@@ -55,7 +55,7 @@ jobs:
 
   # 3. The two deploys run in parallel, both behind the migration.
   deploy-api:
-    name: deploy doubleblind-api
+    name: deploy swipeless-api
     needs: migrate
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -70,14 +70,14 @@ jobs:
 
       - uses: ./.github/actions/vercel-deploy
         with:
-          project-name: doubleblind-api
+          project-name: swipeless-api
           project-id: ${{ env.VERCEL_API_PROJECT_ID }}
           org-id: ${{ env.VERCEL_ORG_ID }}
           token: ${{ secrets.VERCEL_TOKEN }}
           cli-version: ${{ env.VERCEL_CLI_VERSION }}
 
   deploy-admin:
-    name: deploy doubleblind-admin
+    name: deploy swipeless-admin
     needs: migrate
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -92,7 +92,7 @@ jobs:
 
       - uses: ./.github/actions/vercel-deploy
         with:
-          project-name: doubleblind-admin
+          project-name: swipeless-admin
           project-id: ${{ env.VERCEL_ADMIN_PROJECT_ID }}
           org-id: ${{ env.VERCEL_ORG_ID }}
           token: ${{ secrets.VERCEL_TOKEN }}
@@ -103,7 +103,7 @@ jobs:
   #    and the GitHub release check first and skip cleanly when the version is
   #    already out.
   #
-  #    skills/doubleblind/package.json and .claude-plugin/plugin.json describe
+  #    skills/swipeless/package.json and .claude-plugin/plugin.json describe
   #    the same skill through two different front doors and must carry the same
   #    version. The job fails if they drift.
   release-skill:
@@ -129,8 +129,8 @@ jobs:
         id: meta
         run: |
           set -euo pipefail
-          name=$(node -p "require('./skills/doubleblind/package.json').name")
-          version=$(node -p "require('./skills/doubleblind/package.json').version")
+          name=$(node -p "require('./skills/swipeless/package.json').name")
+          version=$(node -p "require('./skills/swipeless/package.json').version")
           plugin=$(node -p "require('./.claude-plugin/plugin.json').version")
           if [ "$version" != "$plugin" ]; then
             echo "::error file=.claude-plugin/plugin.json::skill package is $version but plugin.json is $plugin; bump both together"
@@ -155,7 +155,7 @@ jobs:
 
       - name: Publish to npm
         if: steps.registry.outputs.published == 'false'
-        working-directory: skills/doubleblind
+        working-directory: skills/swipeless
         run: npm publish --access public
 
       - name: Is the release tag already cut?

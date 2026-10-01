@@ -1,5 +1,5 @@
 {
-  "name": "doubleblind",
+  "name": "swipeless",
   "private": true,
   "type": "module",
   "packageManager": "bun@1.3.14",
@@ -43,7 +43,7 @@
     "lint:fix": "biome check --write .",
     "typecheck": "bun run --filter '*' typecheck",
     "test": "bun test",
-    "test:db": "TEST_DATABASE_URL=postgres://doubleblind:doubleblind@localhost:5434/doubleblind bun test",
+    "test:db": "TEST_DATABASE_URL=postgres://swipeless:swipeless@localhost:5434/swipeless bun test",
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
     "db:generate": "drizzle-kit generate",

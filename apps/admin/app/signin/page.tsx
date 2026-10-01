@@ -18,9 +18,7 @@ export default async function SignInPage({
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-6 px-6 py-16">
-      <h1 className="text-3xl font-semibold tracking-tight">
-        doubleblind admin
-      </h1>
+      <h1 className="text-3xl font-semibold tracking-tight">swipeless admin</h1>
       <p className="text-neutral-600 dark:text-neutral-400">
         Sign in with a <code>smitten.fun</code> or <code>smitten.co</code>{' '}
         account.

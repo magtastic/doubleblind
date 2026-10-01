@@ -1,6 +1,6 @@
-import { PgDrizzle } from '@doubleblind/db'
-import { profiles } from '@doubleblind/db/schema'
-import { Gone, Unauthorized } from '@doubleblind/shared'
+import { PgDrizzle } from '@swipeless/db'
+import { profiles } from '@swipeless/db/schema'
+import { Gone, Unauthorized } from '@swipeless/shared'
 import { eq } from 'drizzle-orm'
 import { Clock, Effect, Redacted } from 'effect'
 import { type AuthenticatedProfile, PROFILE_TTL_MS } from './service.ts'
@@ -39,7 +39,7 @@ export const tokenFromAuthorization = (
 }
 
 /**
- * `dependencies` is empty for the same reason `Doubleblind`'s is: the database
+ * `dependencies` is empty for the same reason `Swipeless`'s is: the database
  * is a requirement the layer's builder supplies, so production points this at
  * Postgres and the tests point the same code at TEST_DATABASE_URL.
  */

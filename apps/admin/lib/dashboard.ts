@@ -1,12 +1,12 @@
-import { DbLive, PgDrizzle } from '@doubleblind/db'
+import { DbLive, PgDrizzle } from '@swipeless/db'
 import {
   adminEvents,
   PROFILE_TTL_DAYS,
   profiles,
   setups,
-} from '@doubleblind/db/schema'
-import { isPhotoKey } from '@doubleblind/photos'
-import { SETUP_STATUSES, type SetupStatus } from '@doubleblind/shared'
+} from '@swipeless/db/schema'
+import { isPhotoKey } from '@swipeless/photos'
+import { SETUP_STATUSES, type SetupStatus } from '@swipeless/shared'
 import { desc, inArray, sql } from 'drizzle-orm'
 import { Cause, Clock, Effect, Schema } from 'effect'
 import { isSuperAdmin } from './access.ts'

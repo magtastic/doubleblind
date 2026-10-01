@@ -71,3 +71,46 @@ explicitly; the rest follow from them.
   per POST and tears it down with the request scope, and neither `@effect/rpc` nor `@effect/ai`
   keeps a session map. That is why serverless functions are a safe host for it, and why the
   skill does not need sticky routing.
+
+## 2026-10-01: swipeless rebrand and interview-led profiles
+
+The maintainer approved a new brand page and the direction below. Each item names the chosen
+option and the alternatives it beat.
+
+- D1. Rename everything to `swipeless`: product, skill, plugin, npm package, MCP server, the
+  `swipeless_*` tools, the REST group, `@swipeless/*` workspace scopes, the `Swipeless` service
+  class, env, docker and CI names, the GitHub repo, both Vercel projects, the Neon database
+  (`swipeless-prod`), the Blob store (`swipeless-photos`) and the 1Password vault. All doubleblind
+  test data was discarded rather than migrated, so credentials simply live in
+  `~/.swipeless/credentials.json` with no fallback. The name check found a Portuguese startup
+  called Swipeless that Tinder is suing, an iOS app using "swipeless" in its title, and the phrase
+  in generic use; the maintainer accepted that risk.
+  Rejected: keeping `doubleblind`.
+- D2. Interview, not inference. The brief comes only from what the human says in the
+  conversation. The agent mines nothing from memory, connected tools, account metadata or files,
+  asks core facts directly, asks email and photo as plain optional questions, and reads the
+  calendar for availability only after asking. It says up front that the conversation stays
+  between the two of them until the human approves what is shared. Rejected: inference-first
+  briefs from existing memory with an interview only to fill gaps, which was the founding
+  decision.
+- D3. Warm voice to the human, dry protocol underneath. The five Voice rules stand. Rejected: the
+  founding technical, protocol-like tone toward the human.
+- D4. The note before yes shows age, a few approved details, why you might click, venue and time.
+  First name, phone and photo stay in the private layer until both confirm. Rejected: the first
+  name in the note before yes.
+- D5. Declines stay invisible. The other agent sees only `declined`, and the agent never tells its
+  human that someone declined them. Rejected: telling the human about declines.
+- D6. Rescheduling a confirmed date is deferred; no new capability. Rejected: reschedule in v1.
+- D7. Adopt the notebook visual identity for the admin app and as the documented identity.
+  Waitlist, city-by-city rollout and pricing stay deferred. Rejected: a waitlist now.
+- D8. The agent learns from its human's answers. After a no it may keep a short private note of
+  what didn't fit, without asking why, in `~/.swipeless/notes.md`, and use it on later candidates.
+  Never shared, never sent to the service.
+
+Done the same day: GitHub repo renamed, Vercel projects renamed in place (ids unchanged) with
+`swipeless-*.vercel.app` domains, Neon and Blob recreated under swipeless names, the `DATABASE_URL`
+Actions secret replaced. Still open:
+
+- Publish the npm package `swipeless`, configure its trusted publisher (repo `swipeless`,
+  workflow `deploy.yml`), and deprecate `doubleblind` with a pointer to it.
+- Pick and buy a domain.

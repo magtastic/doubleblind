@@ -6,14 +6,14 @@ import {
   expect,
   test,
 } from 'bun:test'
-import { PgDrizzle } from '@doubleblind/db'
-import { adminEvents, profiles, setups } from '@doubleblind/db/schema'
+import { PgDrizzle } from '@swipeless/db'
+import { adminEvents, profiles, setups } from '@swipeless/db/schema'
 import {
   hasTestDb,
   migrate,
   TestDbLive,
   truncateAll,
-} from '@doubleblind/db/testing'
+} from '@swipeless/db/testing'
 import {
   ConfirmRequest,
   DeclineRequest,
@@ -24,7 +24,7 @@ import {
   Proposal,
   ProposeRequest,
   Venue,
-} from '@doubleblind/shared'
+} from '@swipeless/shared'
 import { and, eq } from 'drizzle-orm'
 import {
   Duration,
@@ -35,7 +35,7 @@ import {
   TestContext,
 } from 'effect'
 import { EmbeddingModelDeterministic } from '../src/embeddings.ts'
-import { Doubleblind } from '../src/service.ts'
+import { Swipeless } from '../src/service.ts'
 import { hashToken } from '../src/token.ts'
 import { photoObjects, TestPhotos } from './support/photos.ts'
 
@@ -56,7 +56,7 @@ if (!hasTestDb) {
   )
 }
 
-const TestLayer = Doubleblind.Default.pipe(
+const TestLayer = Swipeless.Default.pipe(
   Layer.provide(EmbeddingModelDeterministic),
   Layer.provide(TestPhotos),
   Layer.provideMerge(TestDbLive)
@@ -106,7 +106,7 @@ const profileFixture = (
 
 /** Publishes a fixture and hands back the id the service issued. */
 const publishFixture = (firstName: string, overrides: ProfileOverrides = {}) =>
-  Doubleblind.pipe(
+  Swipeless.pipe(
     Effect.flatMap((service) =>
       service.publish(profileFixture(firstName, overrides))
     ),
@@ -127,13 +127,13 @@ const pairUp = (one: ProfileId, other: ProfileId) =>
   )
 
 const candidatesFor = (profileId: ProfileId) =>
-  Doubleblind.pipe(
+  Swipeless.pipe(
     Effect.flatMap((service) => service.candidates({ profileId }, 10))
   )
 
 const describeDb = hasTestDb ? describe : describe.skip
 
-describeDb('Doubleblind service', () => {
+describeDb('Swipeless service', () => {
   beforeAll(() => runtime.runPromise(migrate))
   beforeEach(() => runtime.runPromise(truncateAll))
   afterAll(() => runtime.dispose())
@@ -142,7 +142,7 @@ describeDb('Doubleblind service', () => {
     test('stores only the hash of the token it hands back', async () => {
       const stored = await runtime.runPromise(
         Effect.gen(function* () {
-          const service = yield* Doubleblind
+          const service = yield* Swipeless
           const db = yield* PgDrizzle.PgDrizzle
 
           const published = yield* service.publish(profileFixture('Sigrún'))
@@ -167,7 +167,7 @@ describeDb('Doubleblind service', () => {
         'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII='
       await runtime.runPromise(
         Effect.gen(function* () {
-          const service = yield* Doubleblind
+          const service = yield* Swipeless
           const db = yield* PgDrizzle.PgDrizzle
           const published = yield* service.publish(
             profileFixture('Test', { photoUrl: dataUri })
@@ -189,7 +189,7 @@ describeDb('Doubleblind service', () => {
     test('records a signup for the admin site with no personal data', async () => {
       const events = await runtime.runPromise(
         Effect.gen(function* () {
-          const service = yield* Doubleblind
+          const service = yield* Swipeless
           const db = yield* PgDrizzle.PgDrizzle
 
           yield* service.publish(profileFixture('Sigrún'))
@@ -333,7 +333,7 @@ describeDb('Doubleblind service', () => {
     test('hard-deletes the row, cascades the setups, and logs the deletion', async () => {
       const result = await runtime.runPromise(
         Effect.gen(function* () {
-          const service = yield* Doubleblind
+          const service = yield* Swipeless
           const db = yield* PgDrizzle.PgDrizzle
 
           const caller = yield* publishFixture('Sigrún')
@@ -380,7 +380,7 @@ describeDb('Doubleblind service', () => {
         'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII='
       const result = await runtime.runPromise(
         Effect.gen(function* () {
-          const service = yield* Doubleblind
+          const service = yield* Swipeless
 
           const one = yield* publishFixture('Sigrún', { photoUrl })
           const two = yield* publishFixture('Jón', {
@@ -471,7 +471,7 @@ describeDb('Doubleblind service', () => {
     test('reaches the lifecycle to decline a setup', async () => {
       const result = await runtime.runPromise(
         Effect.gen(function* () {
-          const service = yield* Doubleblind
+          const service = yield* Swipeless
 
           const one = yield* publishFixture('Sigrún')
           const two = yield* publishFixture('Jón', {
@@ -505,7 +505,7 @@ describeDb('Doubleblind service', () => {
     test("hands the module's failures back unchanged", async () => {
       const result = await runtime.runPromise(
         Effect.gen(function* () {
-          const service = yield* Doubleblind
+          const service = yield* Swipeless
           const one = yield* publishFixture('Sigrún')
 
           return yield* Effect.flip(

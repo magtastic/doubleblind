@@ -1,5 +1,5 @@
 {
-  "name": "@doubleblind/db",
+  "name": "@swipeless/db",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -12,7 +12,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@doubleblind/shared": "workspace:*",
+    "@swipeless/shared": "workspace:*",
     "@effect/sql": "catalog:",
     "@effect/sql-drizzle": "catalog:",
     "@effect/sql-pg": "catalog:",

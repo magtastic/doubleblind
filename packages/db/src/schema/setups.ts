@@ -1,4 +1,4 @@
-import { type Proposal, SETUP_STATUSES } from '@doubleblind/shared'
+import { type Proposal, SETUP_STATUSES } from '@swipeless/shared'
 import { sql } from 'drizzle-orm'
 import {
   boolean,

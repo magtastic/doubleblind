@@ -8,6 +8,6 @@ export default defineConfig({
   dbCredentials: {
     url:
       process.env.DATABASE_URL ??
-      'postgresql://doubleblind:doubleblind@localhost:5434/doubleblind',
+      'postgresql://swipeless:swipeless@localhost:5434/swipeless',
   },
 })

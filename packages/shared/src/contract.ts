@@ -2,7 +2,7 @@ import { HttpApiSchema } from '@effect/platform'
 import { Schema } from 'effect'
 
 /**
- * The doubleblind API contract.
+ * The swipeless API contract.
  *
  * Every schema here is shared by the HttpApi endpoints, the MCP tools and the
  * database layer, so it is the single source of truth for what an agent may

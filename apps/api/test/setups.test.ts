@@ -6,14 +6,14 @@ import {
   expect,
   test,
 } from 'bun:test'
-import { PgDrizzle } from '@doubleblind/db'
-import { setups } from '@doubleblind/db/schema'
+import { PgDrizzle } from '@swipeless/db'
+import { setups } from '@swipeless/db/schema'
 import {
   hasTestDb,
   migrate,
   TestDbLive,
   truncateAll,
-} from '@doubleblind/db/testing'
+} from '@swipeless/db/testing'
 import {
   PrivateLayer,
   Profile,
@@ -21,7 +21,7 @@ import {
   Proposal,
   type SetupId,
   Venue,
-} from '@doubleblind/shared'
+} from '@swipeless/shared'
 import { eq } from 'drizzle-orm'
 import {
   ConfigProvider,
@@ -33,7 +33,7 @@ import {
   TestContext,
 } from 'effect'
 import { EmbeddingModelDeterministic } from '../src/embeddings.ts'
-import { Doubleblind } from '../src/service.ts'
+import { Swipeless } from '../src/service.ts'
 import { SetupLifecycle } from '../src/setups.ts'
 import { TestPhotos } from './support/photos.ts'
 
@@ -56,7 +56,7 @@ if (!hasTestDb) {
 
 const TestLayer = Layer.mergeAll(
   SetupLifecycle.Default,
-  Doubleblind.Default
+  Swipeless.Default
 ).pipe(
   Layer.provide(EmbeddingModelDeterministic),
   Layer.provide(TestPhotos),
@@ -87,20 +87,12 @@ const cappedRuntime = ManagedRuntime.make(CappedLayer)
  * how long the suite took to run.
  */
 const run = <A, E>(
-  effect: Effect.Effect<
-    A,
-    E,
-    SetupLifecycle | Doubleblind | PgDrizzle.PgDrizzle
-  >
+  effect: Effect.Effect<A, E, SetupLifecycle | Swipeless | PgDrizzle.PgDrizzle>
 ): Promise<A> =>
   runtime.runPromise(Effect.provide(effect, TestContext.TestContext))
 
 const runCapped = <A, E>(
-  effect: Effect.Effect<
-    A,
-    E,
-    SetupLifecycle | Doubleblind | PgDrizzle.PgDrizzle
-  >
+  effect: Effect.Effect<A, E, SetupLifecycle | Swipeless | PgDrizzle.PgDrizzle>
 ): Promise<A> =>
   cappedRuntime.runPromise(Effect.provide(effect, TestContext.TestContext))
 
@@ -138,7 +130,7 @@ const profileFixture = (firstName: string): Profile =>
   })
 
 const publishFixture = (firstName: string) =>
-  Doubleblind.pipe(
+  Swipeless.pipe(
     Effect.flatMap((service) => service.publish(profileFixture(firstName))),
     Effect.map((response) => response.profileId)
   )
